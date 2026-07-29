@@ -366,13 +366,12 @@ func convertToLLMRequest(anthropicReq *MessageRequest) (*llm.Request, error) {
 	if anthropicReq.OutputConfig != nil && anthropicReq.OutputConfig.Effort != "" {
 		chatReq.TransformerMetadata[TransformerMetadataKeyOutputConfigEffort] = anthropicReq.OutputConfig.Effort
 		// Map output_config effort to reasoning_effort so other outbound transformers can use it.
-		// Anthropic "max" has no direct equivalent in other providers; map to "xhigh"
-		// so downstream transformers can handle it explicitly.
-		if anthropicReq.OutputConfig.Effort == "max" {
-			chatReq.ReasoningEffort = "xhigh"
-		} else {
-			chatReq.ReasoningEffort = anthropicReq.OutputConfig.Effort
-		}
+		// Preserve the effort value losslessly (including "max") so downstream transformers can
+		// decide capability-aware downgrades at the outbound stage, rather than prematurely merging
+		// distinct levels during inbound conversion. See issue #2011: collapsing "max" into "xhigh"
+		// here made it impossible to distinguish the two later, silently degrading callers that
+		// explicitly requested "max".
+		chatReq.ReasoningEffort = anthropicReq.OutputConfig.Effort
 	}
 
 	return chatReq, nil

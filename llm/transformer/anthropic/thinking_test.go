@@ -868,7 +868,7 @@ func TestOutputConfig_Inbound(t *testing.T) {
 			},
 		},
 		{
-			name: "OutputConfig effort=max -> TransformerMetadata output_config_effort=max and ReasoningEffort=xhigh",
+			name: "OutputConfig effort=max -> TransformerMetadata output_config_effort=max and ReasoningEffort=max",
 			anthropicReq: &MessageRequest{
 				Model:     "claude-3-sonnet-20240229",
 				MaxTokens: 4096,
@@ -884,7 +884,9 @@ func TestOutputConfig_Inbound(t *testing.T) {
 				t.Helper()
 				require.NotNil(t, chatReq.TransformerMetadata)
 				require.Equal(t, "max", chatReq.TransformerMetadata[TransformerMetadataKeyOutputConfigEffort])
-				require.Equal(t, "xhigh", chatReq.ReasoningEffort)
+				// "max" is preserved losslessly during inbound conversion (#2011);
+				// capability-aware downgrades happen at the outbound stage only.
+				require.Equal(t, "max", chatReq.ReasoningEffort)
 			},
 		},
 		{

@@ -155,8 +155,9 @@ func convertLLMToGeminiRequestWithConfig(chatReq *llm.Request, config *Config) *
 			switch strings.ToLower(chatReq.ReasoningEffort) {
 			case "none", "low", "medium", "high":
 				thinkingConfig.ThinkingLevel = chatReq.ReasoningEffort
-			case "xhigh":
-				// "xhigh" comes from Anthropic "max"; Gemini's highest level is "high".
+			case "xhigh", "max":
+				// "xhigh"/"max" exceed Gemini's highest named level ("high").
+				// Gemini has no equivalent of OpenAI's "max", so cap at "high".
 				thinkingConfig.ThinkingLevel = "high"
 			default:
 				// For non-standard effort values, convert to budget
