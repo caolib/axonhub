@@ -67,7 +67,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            looplj/axonhub
+            caolibx/axonhub
 
       - name: Build & push single-arch
         uses: docker/build-push-action@v6
@@ -76,8 +76,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            looplj/axonhub:unstable-${{ matrix.arch }}
-            looplj/axonhub:unstable-${{ needs.prepare.outputs.build_date }}-${{ matrix.arch }}
+            caolibx/axonhub:unstable-${{ matrix.arch }}
+            caolibx/axonhub:unstable-${{ needs.prepare.outputs.build_date }}-${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -99,10 +99,10 @@ jobs:
         run: |
           DATE=${{ needs.prepare.outputs.build_date }}
           docker buildx imagetools create \
-            -t looplj/axonhub:unstable \
-            looplj/axonhub:unstable-amd64 \
-            looplj/axonhub:unstable-arm64
+            -t caolibx/axonhub:unstable \
+            caolibx/axonhub:unstable-amd64 \
+            caolibx/axonhub:unstable-arm64
           docker buildx imagetools create \
-            -t looplj/axonhub:unstable-${DATE} \
-            looplj/axonhub:unstable-${DATE}-amd64 \
-            looplj/axonhub:unstable-${DATE}-arm64
+            -t caolibx/axonhub:unstable-${DATE} \
+            caolibx/axonhub:unstable-${DATE}-amd64 \
+            caolibx/axonhub:unstable-${DATE}-arm64
