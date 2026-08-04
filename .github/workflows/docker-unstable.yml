@@ -7,7 +7,7 @@ on:
 jobs:
   prepare:
     name: Pin commit & date
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.pin.outputs.commit_sha }}
       build_date: ${{ steps.pin.outputs.build_date }}
