@@ -1,3 +1,7 @@
+> [!TIP]
+>
+> **本 Fork 的修改**：Anthropic 接口中的 `max` 思考程度会保留原值,不会被改写为 `xhigh`
+
 <div align="center">
 
 # AxonHub - All-in-one AI 开发平台
@@ -298,17 +302,17 @@ response = client.chat.completions.create(
    # 解压下载的文件
    unzip axonhub_*.zip
    cd axonhub_*
-
+   
    # 添加执行权限 (仅限 Linux/macOS)
    chmod +x axonhub
-
+   
    # 直接运行 - 默认使用 SQLite 数据库
    # 安装 AxonHub 到系统
    ./install.sh
-
+   
    # 启动 AxonHub 服务
    ./start.sh
-
+   
    # 停止 AxonHub 服务
    ./stop.sh
    ```
