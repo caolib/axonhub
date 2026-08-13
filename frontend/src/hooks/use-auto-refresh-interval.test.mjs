@@ -28,10 +28,19 @@ test('accepts only supported auto-refresh intervals', () => {
   for (const interval of AUTO_REFRESH_INTERVALS) {
     assert.equal(parseAutoRefreshInterval(interval.toString()), interval);
   }
+  assert.ok(AUTO_REFRESH_INTERVALS.includes(3000), '3s interval should be supported');
 
   for (const value of [null, '', '0', '5001', '05000', '10000 ', 'invalid']) {
     assert.equal(parseAutoRefreshInterval(value), null);
   }
+});
+
+test('treats the closed sentinel as a disabled setting', () => {
+  const storage = new MemoryStorage();
+  storage.setItem('refresh-key', 'closed');
+
+  assert.equal(readAutoRefreshInterval('refresh-key', storage), null);
+  assert.equal(storage.getItem('refresh-key'), 'closed');
 });
 
 test('removes invalid stored values', () => {
@@ -66,7 +75,7 @@ test('returns disabled when the browser localStorage accessor throws', () => {
   }
 });
 
-test('persists intervals independently and removes disabled settings', () => {
+test('persists intervals independently and remembers disabled settings', () => {
   const storage = new MemoryStorage();
 
   writeAutoRefreshInterval('requests', 5000, storage);
@@ -77,6 +86,7 @@ test('persists intervals independently and removes disabled settings', () => {
 
   writeAutoRefreshInterval('requests', null, storage);
 
-  assert.equal(storage.getItem('requests'), null);
+  assert.equal(storage.getItem('requests'), 'closed');
+  assert.equal(readAutoRefreshInterval('requests', storage), null);
   assert.equal(readAutoRefreshInterval('traces', storage), 30000);
 });

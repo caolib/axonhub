@@ -106,7 +106,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         const isStream = request.stream;
 
         return (
-          <div className='flex min-w-[120px] flex-col gap-1.5'>
+          <div className='flex flex-wrap items-center gap-1.5'>
             <button
               type='button'
               onClick={() => options?.onBodyClick?.(request.id, row.index)}
@@ -179,7 +179,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
           );
 
         return (
-          <div className='flex min-w-[160px] flex-col gap-1'>
+          <div className='flex flex-wrap items-center gap-1.5'>
             {modelLabel}
             <div className='flex items-center gap-1.5'>
               {reasoningEffort && (
@@ -534,7 +534,7 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
         }
 
         return (
-          <div className='min-w-[128px] font-mono text-xs'>
+          <div className='font-mono text-xs'>
             {request.metricsFirstTokenLatencyMs != null && <div>{t('requests.duration.firstToken', { duration: formatDuration(request.metricsFirstTokenLatencyMs) })}</div>}
             <div className='text-muted-foreground'>{t('requests.duration.total', { duration: formatDuration(request.metricsLatencyMs) })}</div>
           </div>

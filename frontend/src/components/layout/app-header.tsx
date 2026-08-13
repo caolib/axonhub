@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
-import { IconSettings } from '@tabler/icons-react';
+import { IconActivity, IconAi, IconRobot, IconSettings } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
@@ -81,13 +81,22 @@ export function AppHeader() {
         {/* 中间快捷导航 - 等效侧边栏按钮 */}
         <div className='flex items-center gap-1'>
           <Link to='/channels'>
-            <Button variant='ghost' size='sm'>{t('sidebar.items.channels')}</Button>
+            <Button variant='ghost' size='sm' className='text-muted-foreground hover:text-foreground'>
+              <IconAi className='mr-1.5 h-4 w-4' />
+              {t('sidebar.items.channels')}
+            </Button>
           </Link>
           <Link to='/models'>
-            <Button variant='ghost' size='sm'>{t('sidebar.items.models')}</Button>
+            <Button variant='ghost' size='sm' className='text-muted-foreground hover:text-foreground'>
+              <IconRobot className='mr-1.5 h-4 w-4' />
+              {t('sidebar.items.models')}
+            </Button>
           </Link>
           <Link to='/project/requests'>
-            <Button variant='ghost' size='sm'>{t('sidebar.items.requests')}</Button>
+            <Button variant='ghost' size='sm' className='text-muted-foreground hover:text-foreground'>
+              <IconActivity className='mr-1.5 h-4 w-4' />
+              {t('sidebar.items.requests')}
+            </Button>
           </Link>
         </div>
 
