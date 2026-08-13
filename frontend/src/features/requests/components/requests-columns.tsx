@@ -26,6 +26,12 @@ interface UseRequestsColumnsOptions {
   onViewDetail?: (requestId: string) => void;
 }
 
+const API_FORMAT_LABELS: Record<string, string> = {
+  'openai/chat_completions': 'chat',
+  'openai/responses': 'responses',
+  'anthropic/messages': 'messages',
+};
+
 export const DEFAULT_HIDDEN_COLUMN_IDS = ['status', 'source', 'apiFormat', 'clientIP', 'tokensPerSecond', 'writeCache'];
 
 export const DEFAULT_MOBILE_HIDDEN_COLUMN_IDS = [
@@ -209,9 +215,10 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       enableHiding: true,
       cell: ({ row }) => {
         const format = row.original.format;
-        return format ? (
+        const displayFormat = format ? API_FORMAT_LABELS[format] ?? format : format;
+        return displayFormat ? (
           <span className='inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300'>
-            {format}
+            {displayFormat}
           </span>
         ) : (
           <span className='text-muted-foreground text-xs'>-</span>
@@ -575,21 +582,16 @@ export function useRequestsColumns(options?: UseRequestsColumnsOptions): ColumnD
       id: 'details',
       header: () => <span className='sr-only'>{t('requests.columns.details')}</span>,
       cell: ({ row }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type='button'
-              variant='ghost'
-              size='icon-sm'
-              className='h-8 w-8'
-              onClick={() => openDetail(row.original.id)}
-              aria-label={t('requests.actions.viewDetails')}
-            >
-              <FileText className='h-4 w-4' />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('requests.actions.viewDetails')}</TooltipContent>
-        </Tooltip>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          className='h-8'
+          onClick={() => openDetail(row.original.id)}
+        >
+          <FileText className='mr-2 h-4 w-4' />
+          {t('requests.actions.viewDetails')}
+        </Button>
       ),
       enableHiding: false,
     },

@@ -58,7 +58,7 @@
   "requests.source.api": "API",
   "requests.source.playground": "Playground",
   "requests.source.test": "Test",
-  "requests.actions.viewDetails": "View Details",
+  "requests.actions.viewDetails": "View",
   "requests.actions.copyRequestId": "Copy request ID",
   "requests.actions.copied": "Copied",
   "requests.actions.copy": "Copy",

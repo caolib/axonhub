@@ -78,6 +78,19 @@ export function AppHeader() {
           <ProjectSwitcher />
         </div>
 
+        {/* 中间快捷导航 - 等效侧边栏按钮 */}
+        <div className='flex items-center gap-1'>
+          <Link to='/channels'>
+            <Button variant='ghost' size='sm'>{t('sidebar.items.channels')}</Button>
+          </Link>
+          <Link to='/models'>
+            <Button variant='ghost' size='sm'>{t('sidebar.items.models')}</Button>
+          </Link>
+          <Link to='/project/requests'>
+            <Button variant='ghost' size='sm'>{t('sidebar.items.requests')}</Button>
+          </Link>
+        </div>
+
         {/* 右侧控件 */}
         <div className='flex items-center gap-2 pr-6'>
           {/* Quota Badges - only visible to users with channel read permission */}
