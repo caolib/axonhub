@@ -364,6 +364,7 @@ func (svc *ProviderQuotaService) registerProviderQuotaSupport() {
 	svc.registerKimiCodeSupport()
 	svc.registerMinimaxSupport()
 	svc.registerZhipuSupport()
+	svc.registerCharmHyperSupport()
 }
 
 func (svc *ProviderQuotaService) RegisterScheduledTasks(ctx context.Context, s *scheduler.Scheduler) error {
@@ -426,6 +427,10 @@ func (svc *ProviderQuotaService) registerMinimaxSupport() {
 
 func (svc *ProviderQuotaService) registerZhipuSupport() {
 	svc.checkers["zhipu"] = provider_quota.NewZhipuQuotaChecker(svc.httpClient)
+}
+
+func (svc *ProviderQuotaService) registerCharmHyperSupport() {
+	svc.checkers["charm_hyper"] = provider_quota.NewCharmHyperQuotaChecker(svc.httpClient)
 }
 
 func (svc *ProviderQuotaService) intervalToCronExpr(interval time.Duration) string {
@@ -918,24 +923,8 @@ func hasCredentialsForProvider(ch *ent.Channel) bool {
 		return false
 	}
 
-	if ch.Type == channel.TypeOpencodeGo || ch.Type == channel.TypeOpencodeGoAnthropic {
-		return hasOpenCodeGoQuotaCredentials(ch)
-	}
-
 	return ch.Credentials.OAuth != nil || isOAuthJSON(ch.Credentials.APIKey) ||
 		strings.TrimSpace(ch.Credentials.APIKey) != "" || len(ch.Credentials.APIKeys) > 0
-}
-
-// hasOpenCodeGoQuotaCredentials reports whether the channel has the auth cookie
-// configured for OpenCode Go quota polling. The quota check scrapes the dashboard
-// using this cookie (not the upstream request credentials), so gate on it directly
-// to avoid repeatedly running checks that can only fail with "missing auth cookie".
-func hasOpenCodeGoQuotaCredentials(ch *ent.Channel) bool {
-	if ch.Settings == nil || ch.Settings.ProviderQuota == nil || ch.Settings.ProviderQuota.OpencodeGo == nil {
-		return false
-	}
-
-	return strings.TrimSpace(ch.Settings.ProviderQuota.OpencodeGo.AuthCookie) != ""
 }
 
 func (svc *ProviderQuotaService) mergeLimitsIntoQuotaData(quotaData provider_quota.QuotaData) map[string]any {

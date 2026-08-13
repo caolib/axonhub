@@ -47,6 +47,20 @@ func TestDefaultEndpointsForChannelType_UseLLMAPIFormatValues(t *testing.T) {
 			},
 		},
 		{
+			name: "qiniu exposes openai chat completions",
+			typ:  channel.TypeQiniu,
+			expected: []string{
+				llm.APIFormatOpenAIChatCompletion.String(),
+			},
+		},
+		{
+			name: "qiniu anthropic exposes anthropic messages",
+			typ:  channel.TypeQiniuAnthropic,
+			expected: []string{
+				llm.APIFormatAnthropicMessage.String(),
+			},
+		},
+		{
 			name: "vercel keeps openai-compatible built-in endpoints for compatibility",
 			typ:  channel.TypeVercel,
 			expected: []string{
@@ -93,6 +107,11 @@ func TestDefaultEndpointsForChannelType_UseLLMAPIFormatValues(t *testing.T) {
 			expected: []string{llm.APIFormatOpenAIResponse.String()},
 		},
 		{
+			name:     "xai responses defaults to responses",
+			typ:      channel.TypeXaiResponses,
+			expected: []string{llm.APIFormatOpenAIResponse.String()},
+		},
+		{
 			name: "codex exposes responses plus image generation and edit",
 			typ:  channel.TypeCodex,
 			expected: []string{
@@ -100,6 +119,11 @@ func TestDefaultEndpointsForChannelType_UseLLMAPIFormatValues(t *testing.T) {
 				llm.APIFormatOpenAIImageGeneration.String(),
 				llm.APIFormatOpenAIImageEdit.String(),
 			},
+		},
+		{
+			name:     "fenno exposes codex responses",
+			typ:      channel.TypeFenno,
+			expected: []string{llm.APIFormatOpenAIResponse.String()},
 		},
 		{
 			name:     "jina exposes rerank and embedding",

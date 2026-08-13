@@ -67,6 +67,7 @@ func (Channel) Fields() []ent.Field {
 				"xiaomi",
 				"xiaomi_anthropic",
 				"xai",
+				"xai_responses",
 				"ppio",
 				"siliconflow",
 				"volcengine",
@@ -96,6 +97,9 @@ func (Channel) Fields() []ent.Field {
 				"ollama_anthropic",
 				"evolink",
 				"evolink_anthropic",
+				"groq",
+				"qiniu_anthropic",
+				"fenno",
 			).
 			Annotations(
 				entgql.OrderField("TYPE"),
@@ -146,6 +150,12 @@ func (Channel) Fields() []ent.Field {
 			Optional().Nillable().
 			Annotations(
 				entgql.Skip(entgql.SkipMutationCreateInput),
+			),
+		field.Time("auto_disabled_at").
+			Optional().Nillable().
+			Comment("Set when the channel was disabled automatically, and cleared when it recovers; distinguishes an automatic disable from an operator one.").
+			Annotations(
+				entgql.Skip(entgql.SkipMutationCreateInput, entgql.SkipMutationUpdateInput),
 			),
 		field.String("remark").
 			Optional().Nillable().

@@ -28,13 +28,6 @@ const PROVIDER_QUOTA_STATUSES_QUERY = `
             quotaData
             providerType
           }
-          settings {
-            providerQuota {
-              opencodeGo {
-                workspaceId
-              }
-            }
-          }
         }
       }
     }
@@ -177,6 +170,10 @@ export type ProviderNeuralWattQuotaData = ProviderQuotaDataCommon & {
   } | null;
 };
 
+export type ProviderCharmHyperQuotaData = ProviderQuotaDataCommon & {
+  balance?: number | null;
+};
+
 export type ProviderApertisQuotaData = ProviderQuotaDataCommon & {
   is_subscriber?: boolean;
   payg?: {
@@ -271,13 +268,22 @@ export type ProviderZhipuQuotaData = ProviderQuotaDataCommon & {
 };
 
 export type ClineQuotaWindow = {
-  items_count: number;
-  used_cost_units: number;
+  window_state?: 'active' | 'inactive' | 'unavailable' | 'invalid';
+  active_window?: boolean;
+  window_start_at?: string;
+  cost_start_at?: string;
+  items_count?: number;
+  used_cost_units?: number;
   limit_cost_units: number;
-  remaining_cost_units: number;
-  credits_used: number;
+  remaining_cost_units?: number;
+  credits_used?: number;
   usage_ratio?: number;
   usage_percent?: number;
+  cost_usage_ratio?: number;
+  cost_usage_percent?: number;
+  usage_source?: string;
+  reset_source?: string;
+  cost_source?: string;
   next_reset_at?: string | null;
 };
 
@@ -289,6 +295,10 @@ type ClineBalance = {
 type ClineUsageFetch = {
   pages: number;
   items_seen: number;
+  cline_pass_items_seen?: number;
+  direct_items_seen?: number;
+  unclassified_items_seen?: number;
+  invalid_timestamp_items?: number;
   truncated: boolean;
 };
 
@@ -305,6 +315,18 @@ type ProviderClinePassQuotaData = ProviderQuotaDataCommon & {
     last30d: ClineQuotaWindow;
   };
   usage_fetch: ClineUsageFetch;
+};
+
+type ProviderClineUnavailablePassQuotaData = ProviderQuotaDataCommon & {
+  model_scope: 'cline_pass_only' | 'mixed' | 'unknown';
+  status_basis: 'cline_pass_unavailable' | 'cline_pass_unavailable_mixed_pool';
+  pool: 'cline_pass';
+  pool_note?: string;
+  pass_state: 'unavailable';
+  balance: ClineBalance;
+  cost_scale?: never;
+  windows?: never;
+  usage_fetch?: never;
 };
 
 type ProviderClineDirectQuotaData = ProviderQuotaDataCommon & {
@@ -328,10 +350,18 @@ type ProviderClineErrorQuotaData = ProviderQuotaDataCommon & {
   usage_fetch?: never;
 };
 
-export type ProviderClineQuotaData = ProviderClinePassQuotaData | ProviderClineDirectQuotaData | ProviderClineErrorQuotaData;
+export type ProviderClineQuotaData =
+  | ProviderClinePassQuotaData
+  | ProviderClineUnavailablePassQuotaData
+  | ProviderClineDirectQuotaData
+  | ProviderClineErrorQuotaData;
 
-export function isClinePassPoolQuotaData(qd: ProviderClineQuotaData): qd is ProviderClinePassQuotaData {
-  return qd.pool === 'cline_pass';
+export function isClineActivePassQuotaData(qd: ProviderClineQuotaData): qd is ProviderClinePassQuotaData {
+  return qd.pool === 'cline_pass' && qd.windows != null;
+}
+
+export function isClineUnavailablePassQuotaData(qd: ProviderClineQuotaData): qd is ProviderClineUnavailablePassQuotaData {
+  return 'pass_state' in qd && qd.pass_state === 'unavailable';
 }
 
 export type ProviderQuotaChannel = {
@@ -381,7 +411,6 @@ export type ProviderQuotaChannel = {
     }
   | {
       type: 'opencode_go' | 'opencode_go_anthropic';
-      workspaceId?: string | null;
       quotaStatus: {
         quotaData: ProviderOpenCodeGoQuotaData;
       };
@@ -434,6 +463,13 @@ export type ProviderQuotaChannel = {
     }
   | {
       type: 'openai' | 'openai_responses';
+      providerType: 'charm_hyper';
+      quotaStatus: {
+        quotaData: ProviderCharmHyperQuotaData;
+      };
+    }
+  | {
+      type: 'openai' | 'openai_responses';
       providerType?: undefined;
       quotaStatus: {
         quotaData: ProviderQuotaDataCommon;
@@ -454,13 +490,6 @@ type QueryChannelNode = {
   name: string;
   type: string;
   providerQuotaStatus: ProviderQuotaStatusNode | null;
-  settings?: {
-    providerQuota?: {
-      opencodeGo?: {
-        workspaceId?: string | null;
-      } | null;
-    } | null;
-  } | null;
 };
 
 type QueryChannelsResponse = {
@@ -539,7 +568,6 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
     return {
       ...base,
       type: node.type as 'opencode_go' | 'opencode_go_anthropic',
-      workspaceId: node.settings?.providerQuota?.opencodeGo?.workspaceId ?? null,
       quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderOpenCodeGoQuotaData },
     };
   }
@@ -596,6 +624,14 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
         type: typeVal,
         providerType: 'apertis' as const,
         quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderApertisQuotaData },
+      };
+    }
+    if (providerType === 'charm_hyper') {
+      return {
+        ...base,
+        type: typeVal,
+        providerType: 'charm_hyper' as const,
+        quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderCharmHyperQuotaData },
       };
     }
     return {
