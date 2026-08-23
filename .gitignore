@@ -168,3 +168,5 @@ config.schema.json
 .playwright-mcp/
 .ace-tool/
 .omx/
+# Added by code-review-graph
+.code-review-graph/
