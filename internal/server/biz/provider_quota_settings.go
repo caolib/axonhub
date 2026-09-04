@@ -13,8 +13,9 @@ const SystemKeyProviderQuotaCollectionSettings = "provider_quota_collection_sett
 
 var supportedProviderQuotaTypes = []string{
 	"claudecode", "codex", "github_copilot", "nanogpt", "cline",
+	"xai_subscription",
 	"wafer", "synthetic", "neuralwatt", "apertis", "opencode_go",
-	"kimi_code", "minimax", "zhipu", "charm_hyper",
+	"kimi_code", "minimax", "zhipu", "charm_hyper", "zenmux",
 }
 
 var supportedProviderQuotaTypeSet = func() map[string]struct{} {

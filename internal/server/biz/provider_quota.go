@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +39,29 @@ const (
 	// here so it stays bounded for a channel that never recovers.
 	maxQuotaErrorBackoffSteps = 4
 )
+
+var providerQuotaChannelTypes = []channel.Type{
+	channel.TypeClaudecode,
+	channel.TypeCodex,
+	channel.TypeXaiSubscription,
+	channel.TypeGithubCopilot,
+	channel.TypeNanogpt,
+	channel.TypeNanogptResponses,
+	channel.TypeZenmux,
+	channel.TypeZenmuxResponses,
+	channel.TypeZenmuxAnthropic,
+	channel.TypeZenmuxGemini,
+	channel.TypeCline,
+	channel.TypeOpenai,
+	channel.TypeOpenaiResponses,
+	channel.TypeOpencodeGo,
+	channel.TypeOpencodeGoAnthropic,
+	channel.TypeMoonshotCoding,
+	channel.TypeMinimax,
+	channel.TypeMinimaxAnthropic,
+	channel.TypeZhipu,
+	channel.TypeZhipuAnthropic,
+}
 
 // quotaErrorBackoff returns the next-check delay after `failures` consecutive
 // quota check failures: base, 2x, 4x, ... capped at maxQuotaErrorBackoffMultiplier.
@@ -172,6 +196,14 @@ func quotaStatusRank(s providerquotastatus.Status) int {
 //        * Ready: true for available/warning, false for exhausted/unknown
 //        * NextResetAt: optional timestamp of next quota reset
 //        * RawData: provider-specific data (stored in JSON format)
+//
+//    When the provider reports (or the plan fixes) the length of a limit
+//    window, label the limit with QuotaLimitStatus.WithWindow so it also
+//    carries a PeriodStart. That is what lets the service price the period from
+//    usage logs (see provider_quota_cost.go); limits without a period start
+//    simply get no money estimate. Do NOT derive one from a timestamp that is
+//    an incremental regeneration tick rather than a window boundary — see the
+//    synthetic checker for that case.
 //
 // 2. Add the provider type to the database schema
 //
@@ -353,8 +385,10 @@ func NewProviderQuotaService(params ProviderQuotaServiceParams) *ProviderQuotaSe
 func (svc *ProviderQuotaService) registerProviderQuotaSupport() {
 	svc.registerClaudeCodeSupport()
 	svc.registerCodexSupport()
+	svc.registerXAISubscriptionSupport()
 	svc.registerGithubCopilotSupport()
 	svc.registerNanoGPTSupport()
+	svc.registerZenmuxSupport()
 	svc.registerClineSupport()
 	svc.registerWaferSupport()
 	svc.registerSyntheticSupport()
@@ -385,12 +419,20 @@ func (svc *ProviderQuotaService) registerCodexSupport() {
 	svc.checkers["codex"] = provider_quota.NewCodexQuotaChecker(svc.httpClient)
 }
 
+func (svc *ProviderQuotaService) registerXAISubscriptionSupport() {
+	svc.checkers["xai_subscription"] = provider_quota.NewXAISubscriptionQuotaChecker(svc.httpClient)
+}
+
 func (svc *ProviderQuotaService) registerGithubCopilotSupport() {
 	svc.checkers["github_copilot"] = provider_quota.NewGithubCopilotQuotaChecker(svc.httpClient)
 }
 
 func (svc *ProviderQuotaService) registerNanoGPTSupport() {
 	svc.checkers["nanogpt"] = provider_quota.NewNanoGPTQuotaChecker(svc.httpClient)
+}
+
+func (svc *ProviderQuotaService) registerZenmuxSupport() {
+	svc.checkers["zenmux"] = provider_quota.NewZenmuxQuotaChecker(svc.httpClient)
 }
 
 func (svc *ProviderQuotaService) registerClineSupport() {
@@ -565,38 +607,75 @@ func (svc *ProviderQuotaService) ManualCheck(ctx context.Context) {
 	svc.runQuotaCheckForce(ctx)
 }
 
-// ResetChannelQuotaNow attempts to redeem a banked reset credit for the given codex channel.
+// ListResets returns the reset capability and available resets for a channel.
+// Providers that do not implement Resetter report Supported=false without an
+// error so callers can treat resetting as an optional capability.
+func (svc *ProviderQuotaService) ListResets(ctx context.Context, channelID int) (provider_quota.ResetList, error) {
+	ch, err := svc.db.Channel.Query().Where(channel.IDEQ(channelID)).Only(ctx)
+	if err != nil {
+		return provider_quota.ResetList{}, fmt.Errorf("failed to load channel: %w", err)
+	}
+
+	providerType := svc.getProviderType(ch)
+	checker, ok := svc.checkers[providerType]
+	if !ok {
+		return provider_quota.ResetList{Supported: false}, nil
+	}
+
+	resetter, ok := checker.(provider_quota.Resetter)
+	if !ok {
+		return provider_quota.ResetList{Supported: false}, nil
+	}
+
+	if enabled, err := svc.SystemService.IsProviderQuotaCollectionEnabled(ctx, providerType); err != nil {
+		return provider_quota.ResetList{}, fmt.Errorf("failed to read provider quota collection settings: %w", err)
+	} else if !enabled {
+		return provider_quota.ResetList{}, fmt.Errorf("provider quota collection is disabled for %s", providerType)
+	}
+
+	if !hasCredentialsForProvider(ch) {
+		return provider_quota.ResetList{}, fmt.Errorf("channel has no credentials")
+	}
+
+	resets, err := resetter.ListResets(ctx, ch)
+	resets.Supported = true
+	if err != nil {
+		return resets, fmt.Errorf("failed to list %s quota resets: %w", providerType, err)
+	}
+
+	return resets, nil
+}
+
+// ResetChannelQuotaNow attempts to redeem a provider-managed reset for a channel.
 func (svc *ProviderQuotaService) ResetChannelQuotaNow(ctx context.Context, channelID int) error {
 	ch, err := svc.db.Channel.Query().Where(channel.IDEQ(channelID)).Only(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load channel: %w", err)
 	}
 
-	if ch.Type != channel.TypeCodex {
-		return fmt.Errorf("reset is only supported for codex channels")
+	providerType := svc.getProviderType(ch)
+	checker, ok := svc.checkers[providerType]
+	if !ok {
+		return fmt.Errorf("%w for provider %q", provider_quota.ErrResetUnsupported, providerType)
 	}
-	if enabled, err := svc.SystemService.IsProviderQuotaCollectionEnabled(ctx, "codex"); err != nil {
+
+	resetter, ok := checker.(provider_quota.Resetter)
+	if !ok {
+		return fmt.Errorf("%w for provider %q", provider_quota.ErrResetUnsupported, providerType)
+	}
+
+	if enabled, err := svc.SystemService.IsProviderQuotaCollectionEnabled(ctx, providerType); err != nil {
 		return fmt.Errorf("failed to read provider quota collection settings: %w", err)
 	} else if !enabled {
-		return fmt.Errorf("provider quota collection is disabled for codex")
+		return fmt.Errorf("provider quota collection is disabled for %s", providerType)
 	}
 
 	if !hasCredentialsForProvider(ch) {
 		return fmt.Errorf("channel has no credentials")
 	}
 
-	checker, ok := svc.checkers["codex"]
-	if !ok {
-		return fmt.Errorf("no quota checker registered for codex")
-	}
-
-	codexChecker, ok := checker.(*provider_quota.CodexQuotaChecker)
-	if !ok {
-		return fmt.Errorf("invalid codex quota checker type")
-	}
-
-	if _, err := codexChecker.ResetNow(ctx, ch); err != nil {
-		return fmt.Errorf("failed to reset codex quota: %w", err)
+	if err := resetter.Reset(ctx, ch); err != nil {
+		return fmt.Errorf("failed to reset %s quota: %w", providerType, err)
 	}
 
 	// Refresh the quota status immediately so the UI reflects the reset.
@@ -604,7 +683,10 @@ func (svc *ProviderQuotaService) ResetChannelQuotaNow(ctx context.Context, chann
 	// in case a scheduled quota check is running concurrently.
 	svc.mu.Lock()
 	now := time.Now()
-	svc.checkChannelQuota(ctx, ch, now)
+	svc.checkChannelQuota(ctx, quotaCheckGroup{
+		channels:   []*ent.Channel{ch},
+		accountKey: quotaAccountKey(providerType, ch),
+	}, now)
 	svc.mu.Unlock()
 
 	return nil
@@ -634,19 +716,8 @@ func (svc *ProviderQuotaService) runQuotaCheck(ctx context.Context, force bool) 
 	q := svc.db.Channel.Query().
 		Where(
 			channel.StatusEQ(channel.StatusEnabled),
-			channel.TypeIn(channel.TypeClaudecode, channel.TypeCodex, channel.TypeGithubCopilot, channel.TypeNanogpt, channel.TypeNanogptResponses, channel.TypeCline, channel.TypeOpenai, channel.TypeOpenaiResponses, channel.TypeOpencodeGo, channel.TypeOpencodeGoAnthropic, channel.TypeMoonshotCoding, channel.TypeMinimax, channel.TypeMinimaxAnthropic, channel.TypeZhipu, channel.TypeZhipuAnthropic),
+			channel.TypeIn(providerQuotaChannelTypes...),
 		)
-
-	if !force {
-		q = q.Where(
-			channel.Or(
-				channel.Not(channel.HasProviderQuotaStatus()),
-				channel.HasProviderQuotaStatusWith(
-					providerquotastatus.NextCheckAtLTE(now),
-				),
-			),
-		)
-	}
 
 	channelsToCheck, err := q.
 		WithProviderQuotaStatus().
@@ -670,12 +741,22 @@ func (svc *ProviderQuotaService) runQuotaCheck(ctx context.Context, force bool) 
 		log.Bool("force", force),
 	)
 
+	channelGroups := svc.groupChannelsByQuotaAccount(channelsToCheck)
+	if !force {
+		channelGroups = lo.Filter(channelGroups, func(group quotaCheckGroup, _ int) bool {
+			return quotaCheckGroupIsDue(group, now)
+		})
+	}
+	if len(channelGroups) == 0 {
+		log.Debug(ctx, "No channels need quota check at this time")
+		return
+	}
+
 	eg, egCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(min(maxConcurrentQuotaChecks, len(channelsToCheck)))
-	for _, ch := range channelsToCheck {
-		ch := ch
+	eg.SetLimit(min(maxConcurrentQuotaChecks, len(channelGroups)))
+	for _, group := range channelGroups {
 		eg.Go(func() error {
-			svc.checkChannelQuota(egCtx, ch, now)
+			svc.checkChannelQuota(egCtx, group, now)
 			return nil
 		})
 	}
@@ -684,7 +765,8 @@ func (svc *ProviderQuotaService) runQuotaCheck(ctx context.Context, force bool) 
 	}
 }
 
-func (svc *ProviderQuotaService) checkChannelQuota(ctx context.Context, ch *ent.Channel, now time.Time) {
+func (svc *ProviderQuotaService) checkChannelQuota(ctx context.Context, group quotaCheckGroup, now time.Time) {
+	ch := group.channels[0]
 	providerType := svc.getProviderType(ch)
 	if providerType == "" {
 		return
@@ -720,24 +802,47 @@ func (svc *ProviderQuotaService) checkChannelQuota(ctx context.Context, ch *ent.
 			log.String("provider", providerType),
 			log.Cause(err))
 
-		svc.saveQuotaError(ctx, ch, providerType, err, now)
+		failures := nextQuotaGroupErrorCount(group.channels, providerType)
+		for _, member := range group.channels {
+			svc.saveQuotaError(ctx, member, providerType, group.accountKey, err, failures, now)
+		}
 		return
 	}
 
-	// Save quota status
-	svc.saveQuotaStatus(ctx, ch.ID, providerType, quotaData, now)
+	resetList := provider_quota.ResetList{Supported: false}
+	if resetter, ok := checker.(provider_quota.Resetter); ok {
+		resetList.Supported = true
+		resetList, err = resetter.ListResets(ctx, ch)
+		resetList.Supported = true
+		if err != nil {
+			resetList.Error = err.Error()
+			log.Warn(ctx, "Failed to list provider quota resets",
+				log.Int("channel_id", ch.ID),
+				log.String("provider", providerType),
+				log.Cause(err))
+		}
+	}
+	quotaData.Resets = &resetList
 
-	log.Debug(ctx, "Updated quota status",
-		log.Int("channel_id", ch.ID),
-		log.String("provider", providerType),
-		log.String("status", quotaData.Status),
-		log.Bool("ready", quotaData.Ready))
+	for _, member := range group.channels {
+		memberQuotaData := quotaData
+		memberQuotaData.Limits = slices.Clone(quotaData.Limits)
+		svc.fillPeriodQuotas(ctx, member.ID, &memberQuotaData, now)
+		svc.saveQuotaStatus(ctx, member.ID, providerType, group.accountKey, memberQuotaData, now)
+
+		log.Debug(ctx, "Updated quota status",
+			log.Int("channel_id", member.ID),
+			log.String("provider", providerType),
+			log.String("status", memberQuotaData.Status),
+			log.Bool("ready", memberQuotaData.Ready))
+	}
 }
 
 func (svc *ProviderQuotaService) saveQuotaStatus(
 	ctx context.Context,
 	channelID int,
 	providerType string,
+	accountKey string,
 	quotaData provider_quota.QuotaData,
 	now time.Time,
 ) {
@@ -747,6 +852,7 @@ func (svc *ProviderQuotaService) saveQuotaStatus(
 	create := svc.db.ProviderQuotaStatus.Create().
 		SetChannelID(channelID).
 		SetProviderType(pt).
+		SetAccountKey(accountKey).
 		SetStatus(providerquotastatus.Status(quotaData.Status)).
 		SetQuotaData(svc.mergeLimitsIntoQuotaData(quotaData)).
 		SetNextCheckAt(nextCheck)
@@ -783,23 +889,25 @@ func (svc *ProviderQuotaService) saveQuotaError(
 	ctx context.Context,
 	ch *ent.Channel,
 	providerType string,
+	accountKey string,
 	quotaErr error,
+	failures int,
 	now time.Time,
 ) {
 	pt := providerquotastatus.ProviderType(providerType)
+	nextCheck := now.Add(quotaErrorBackoff(svc.getCheckInterval(), failures))
 
 	if ch.Edges.ProviderQuotaStatus != nil {
 		existing := ch.Edges.ProviderQuotaStatus
 		if existing.ProviderType != pt {
-			nextCheck := now.Add(quotaErrorBackoff(svc.getCheckInterval(), 1))
 			quotaData := map[string]any{
 				"error":       quotaErr.Error(),
-				"error_count": 1,
+				"error_count": failures,
 			}
 
-			// 提供商变化后旧状态和限额不再有效，按新提供商的首次失败重置记录。
 			err := svc.db.ProviderQuotaStatus.UpdateOne(existing).
 				SetProviderType(pt).
+				SetAccountKey(accountKey).
 				SetStatus(providerquotastatus.StatusUnknown).
 				SetReady(false).
 				SetQuotaData(quotaData).
@@ -824,15 +932,13 @@ func (svc *ProviderQuotaService) saveQuotaError(
 			existingData = map[string]any{}
 		}
 
-		failures := nextQuotaErrorCount(quotaErrorCount(existingData))
-		nextCheck := now.Add(quotaErrorBackoff(svc.getCheckInterval(), failures))
-
 		merged := lo.Assign(existingData, map[string]any{
 			"error":       quotaErr.Error(),
 			"error_count": failures,
 		})
 
 		err := svc.db.ProviderQuotaStatus.UpdateOne(existing).
+			SetAccountKey(accountKey).
 			SetQuotaData(merged).
 			SetNextCheckAt(nextCheck).
 			Exec(ctx)
@@ -849,16 +955,15 @@ func (svc *ProviderQuotaService) saveQuotaError(
 		return
 	}
 
-	nextCheck := now.Add(quotaErrorBackoff(svc.getCheckInterval(), 1))
-
 	err := svc.db.ProviderQuotaStatus.Create().
 		SetChannelID(ch.ID).
 		SetProviderType(pt).
+		SetAccountKey(accountKey).
 		SetStatus(providerquotastatus.StatusUnknown).
 		SetReady(false).
 		SetQuotaData(map[string]any{
 			"error":       quotaErr.Error(),
-			"error_count": 1,
+			"error_count": failures,
 		}).
 		SetNextCheckAt(nextCheck).
 		Exec(ctx)
@@ -878,10 +983,14 @@ func (svc *ProviderQuotaService) getProviderType(ch *ent.Channel) string {
 		return "claudecode"
 	case channel.TypeCodex:
 		return "codex"
+	case channel.TypeXaiSubscription:
+		return "xai_subscription"
 	case channel.TypeGithubCopilot:
 		return "github_copilot"
 	case channel.TypeNanogpt, channel.TypeNanogptResponses:
 		return "nanogpt"
+	case channel.TypeZenmux, channel.TypeZenmuxResponses, channel.TypeZenmuxAnthropic, channel.TypeZenmuxGemini:
+		return "zenmux"
 	case channel.TypeCline:
 		return "cline"
 	case channel.TypeOpenai, channel.TypeOpenaiResponses:
@@ -900,6 +1009,12 @@ func (svc *ProviderQuotaService) getProviderType(ch *ent.Channel) string {
 }
 
 func hasCredentialsForProvider(ch *ent.Channel) bool {
+	switch ch.Type { //nolint:exhaustive // Only ZenMux uses the separate management credential.
+	case channel.TypeZenmux, channel.TypeZenmuxResponses, channel.TypeZenmuxAnthropic, channel.TypeZenmuxGemini:
+		return strings.TrimSpace(ch.Credentials.ManagementAPIKey) != ""
+	default:
+	}
+
 	if ch.Type == channel.TypeOpenai || ch.Type == channel.TypeOpenaiResponses {
 		providerType := provider_quota.DetectProviderFromURL(ch.BaseURL)
 		if _, ok := provider_quota.URLDetectedProviders()[providerType]; ok {
@@ -907,7 +1022,7 @@ func hasCredentialsForProvider(ch *ent.Channel) bool {
 		}
 	}
 
-	if ch.Type == channel.TypeCodex || ch.Type == channel.TypeClaudecode {
+	if ch.Type == channel.TypeCodex || ch.Type == channel.TypeClaudecode || ch.Type == channel.TypeXaiSubscription {
 		return ch.Credentials.OAuth != nil || isOAuthJSON(ch.Credentials.APIKey)
 	}
 
@@ -929,6 +1044,9 @@ func hasCredentialsForProvider(ch *ent.Channel) bool {
 
 func (svc *ProviderQuotaService) mergeLimitsIntoQuotaData(quotaData provider_quota.QuotaData) map[string]any {
 	data := lo.Assign(map[string]any{}, quotaData.RawData)
+	if quotaData.Resets != nil {
+		data["_resets"] = quotaData.Resets
+	}
 
 	if len(quotaData.Limits) > 0 {
 		limitMaps := make([]map[string]any, 0, len(quotaData.Limits))
@@ -941,6 +1059,18 @@ func (svc *ProviderQuotaService) mergeLimitsIntoQuotaData(quotaData provider_quo
 			}
 			if l.NextResetAt != nil {
 				m["nextResetAt"] = l.NextResetAt.Format(time.RFC3339)
+			}
+			if l.Window != "" {
+				m["window"] = l.Window
+			}
+			if l.PeriodStart != nil {
+				m["periodStart"] = l.PeriodStart.Format(time.RFC3339)
+			}
+			if l.PeriodCost != nil {
+				m["periodCost"] = *l.PeriodCost
+			}
+			if l.PeriodQuota != nil {
+				m["periodQuota"] = *l.PeriodQuota
 			}
 			limitMaps = append(limitMaps, m)
 		}
@@ -996,6 +1126,24 @@ func extractLimitsFromQuotaData(data map[string]any) []provider_quota.QuotaLimit
 			if t, err := time.Parse(time.RFC3339, ts); err == nil {
 				ls.NextResetAt = &t
 			}
+		}
+
+		if w, ok := m["window"].(string); ok {
+			ls.Window = w
+		}
+
+		if ts, ok := m["periodStart"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, ts); err == nil {
+				ls.PeriodStart = &t
+			}
+		}
+
+		if c, ok := m["periodCost"].(float64); ok {
+			ls.PeriodCost = &c
+		}
+
+		if q, ok := m["periodQuota"].(float64); ok {
+			ls.PeriodQuota = &q
 		}
 
 		limits = append(limits, ls)

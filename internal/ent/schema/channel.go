@@ -68,6 +68,7 @@ func (Channel) Fields() []ent.Field {
 				"xiaomi_anthropic",
 				"xai",
 				"xai_responses",
+				"xai_subscription",
 				"ppio",
 				"siliconflow",
 				"volcengine",
@@ -100,6 +101,10 @@ func (Channel) Fields() []ent.Field {
 				"groq",
 				"qiniu_anthropic",
 				"fenno",
+				"zenmux",
+				"zenmux_responses",
+				"zenmux_anthropic",
+				"zenmux_gemini",
 			).
 			Annotations(
 				entgql.OrderField("TYPE"),

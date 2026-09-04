@@ -4,12 +4,14 @@ import { pageInfoSchema } from '@/gql/pagination';
 export const apiFormatSchema = z.enum([
   'openai/chat_completions',
   'openai/responses',
+  'openai/responses-ws',
   'openai/image_generation',
   'openai/image_edit',
   'openai/image_variation',
   'openai/embeddings',
   'openai/video',
   'openai/moderations',
+  'openai/alpha_search',
   'openai/audio_speech',
   'openai/audio_transcriptions',
   'openai/audio_translations',
@@ -33,6 +35,7 @@ export const configurableChannelEndpointApiFormats = [
   'openai/image_variation',
   'openai/embeddings',
   'openai/moderations',
+  'openai/alpha_search',
   'openai/audio_speech',
   'openai/audio_transcriptions',
   'openai/audio_translations',
@@ -89,6 +92,7 @@ export const channelTypeSchema = z.enum([
   'xiaomi_anthropic',
   'xai',
   'xai_responses',
+  'xai_subscription',
   'ppio',
   'siliconflow',
   'volcengine',
@@ -120,6 +124,10 @@ export const channelTypeSchema = z.enum([
   'evolink',
   'evolink_anthropic',
   'groq',
+  'zenmux',
+  'zenmux_responses',
+  'zenmux_anthropic',
+  'zenmux_gemini',
 ]);
 export type ChannelType = z.infer<typeof channelTypeSchema>;
 
@@ -274,6 +282,19 @@ export const retryableErrorPatternSchema = z.object({
 });
 export type RetryableErrorPattern = z.infer<typeof retryableErrorPatternSchema>;
 
+// Per-model outbound protocol override: forces the api formats a model may use.
+// Every listed api_format must already be configured as a channel endpoint.
+export const modelProtocolSchema = z.object({
+  model: z.string().min(1),
+  apiFormats: z.array(z.string().min(1)).min(1),
+  // Older channels do not persist this flag; those overrides remain active.
+  enabled: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? true),
+});
+export type ModelProtocol = z.infer<typeof modelProtocolSchema>;
+
 // Channel Settings
 export const channelSettingsSchema = z.object({
   extraModelPrefix: z.string().optional(),
@@ -291,6 +312,7 @@ export const channelSettingsSchema = z.object({
   rateLimit: channelRateLimitSchema.optional().nullable(),
   retryableStatusCodes: z.array(z.number().int().min(400).max(599)).optional().nullable(),
   retryableErrorPatterns: z.array(retryableErrorPatternSchema).optional().nullable(),
+  modelProtocols: z.array(modelProtocolSchema).optional().nullable(),
 });
 
 export type ChannelSettings = z.infer<typeof channelSettingsSchema>;
@@ -307,6 +329,9 @@ export type ChannelModelEntry = z.infer<typeof channelModelEntrySchema>;
 export const channelCredentialsSchema = z.object({
   apiKey: z.string().optional().nullable(),
   apiKeys: z.array(z.string()).optional().nullable(),
+  // Optional provider management/console API key (e.g. ZenMux) used only for
+  // server-side quota checks; inference keeps using apiKey/apiKeys.
+  managementApiKey: z.string().optional().nullable(),
   oauth: z
     .object({
       accessToken: z.string().optional().nullable(),
@@ -498,12 +523,14 @@ export type SaveChannelModelPriceInput = z.infer<typeof saveChannelModelPriceInp
 function validateOAuthCredentials(type: string, apiKey: string | undefined, ctx: z.RefinementCtx) {
   if (!apiKey) return;
 
-  // For GitHub Copilot, enforce JSON format
   const isCopilot = type === 'github_copilot';
-  if (isCopilot && !apiKey.trim().startsWith('{')) {
+  const requiresJSON = isCopilot || type === 'xai_subscription';
+  if (requiresJSON && !apiKey.trim().startsWith('{')) {
     ctx.addIssue({
       code: 'custom' as const,
-      message: 'channels.dialogs.oauth.errors.copilotCredentialsInvalid',
+      message: isCopilot
+        ? 'channels.dialogs.oauth.errors.copilotCredentialsInvalid'
+        : 'channels.dialogs.oauth.errors.credentialsInvalid',
       path: ['credentials', 'apiKey'],
     });
     return;
@@ -562,6 +589,8 @@ export const createChannelInputSchema = z
       apiKey: z.string().optional(),
       // apiKeys is used for regular API keys (multiple keys for load balancing)
       apiKeys: z.array(z.string()).optional().default([]),
+      // Optional management key used only by the backend for quota checks
+      managementApiKey: z.string().optional(),
       gcp: z
         .object({
           region: z.string().optional(),
@@ -573,7 +602,11 @@ export const createChannelInputSchema = z
   })
   .superRefine((data, ctx) => {
     const isOAuthType =
-      data.type === 'codex' || data.type === 'claudecode' || data.type === 'antigravity' || data.type === 'github_copilot';
+      data.type === 'codex' ||
+      data.type === 'claudecode' ||
+      data.type === 'antigravity' ||
+      data.type === 'github_copilot' ||
+      data.type === 'xai_subscription';
     const hasApiKey = data.credentials.apiKey && data.credentials.apiKey.trim().length > 0;
     const hasApiKeys = data.credentials.apiKeys && data.credentials.apiKeys.some((k) => k.trim().length > 0);
 
@@ -650,6 +683,8 @@ export const updateChannelInputSchema = z
         apiKey: z.string().optional(),
         // apiKeys 用于普通 API Key（支持多 key 负载均衡），OAuth 类型不使用此字段
         apiKeys: z.array(z.string()).optional(),
+        // Optional management key used only by the backend for quota checks
+        managementApiKey: z.string().optional(),
         gcp: z
           .object({
             region: z.string().optional(),
@@ -668,7 +703,11 @@ export const updateChannelInputSchema = z
     // For OAuth validation on updates: validate if type is OAuth, or if credentials.apiKey is provided
     // (which indicates OAuth credentials are being set)
     const isOAuthType =
-      effectiveType === 'codex' || effectiveType === 'claudecode' || effectiveType === 'antigravity' || effectiveType === 'github_copilot';
+      effectiveType === 'codex' ||
+      effectiveType === 'claudecode' ||
+      effectiveType === 'antigravity' ||
+      effectiveType === 'github_copilot' ||
+      effectiveType === 'xai_subscription';
 
     // Derive type from parent context if not available
     let derivedType = effectiveType;

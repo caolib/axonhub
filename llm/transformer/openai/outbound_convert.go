@@ -1,13 +1,21 @@
 package openai
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	"github.com/samber/lo"
 
 	"github.com/looplj/axonhub/llm"
+	"github.com/looplj/axonhub/llm/transformer"
+	"github.com/looplj/axonhub/llm/transformer/shared"
 )
 
-// RequestFromLLM creates OpenAI Request from unified llm.Request with reasoning field configuration.
-func RequestFromLLM(r *llm.Request, reasoningField ReasoningField) *Request {
+// RequestFromLLM creates an OpenAI Request from unified llm.Request with reasoning
+// field configuration. When the request has no explicit prompt cache key, ctx's
+// session ID is used as a fallback when available.
+func RequestFromLLM(ctx context.Context, r *llm.Request, reasoningField ReasoningField) *Request {
 	if r == nil {
 		return nil
 	}
@@ -35,6 +43,12 @@ func RequestFromLLM(r *llm.Request, reasoningField ReasoningField) *Request {
 		Stream:              r.Stream,
 		ParallelToolCalls:   r.ParallelToolCalls,
 		Verbosity:           r.Verbosity,
+	}
+
+	if ctx != nil && lo.FromPtr(req.PromptCacheKey) == "" {
+		if sessionID, ok := shared.GetSessionID(ctx); ok && sessionID != "" {
+			req.PromptCacheKey = lo.ToPtr(sessionID)
+		}
 	}
 
 	// Convert messages
@@ -92,23 +106,6 @@ func RequestFromLLM(r *llm.Request, reasoningField ReasoningField) *Request {
 	}
 
 	return req
-}
-
-// applyReasoningEffortMapping replaces reasoning_effort according to a per-channel mapping.
-// The first entry whose From matches the effort value wins; values not in the list (or an
-// empty/nil list) pass through unchanged. This lets non-standard OpenAI-compatible providers
-// (ollama, opencode, evolink, self-hosted gateways) opt in to conversions like xhigh→max
-// without affecting standard OpenAI channels. Applied in OutboundTransformer.TransformRequest.
-func applyReasoningEffortMapping(effort string, mappings []llm.ReasoningEffortMapping) string {
-	if len(mappings) == 0 || effort == "" {
-		return effort
-	}
-	for _, m := range mappings {
-		if m.From == effort {
-			return m.To
-		}
-	}
-	return effort
 }
 
 // MessageFromLLM creates OpenAI Message from unified llm.Message.
@@ -271,7 +268,36 @@ func MessageContentPartFromLLM(p llm.MessageContentPart) MessageContentPart {
 		}
 	}
 
+	if p.Document != nil {
+		part.Type = "file"
+		part.File = &File{
+			FileID:   p.Document.FileID,
+			Filename: p.Document.Filename,
+		}
+		if strings.HasPrefix(p.Document.URL, "data:") {
+			part.File.FileData = p.Document.URL
+		}
+		if part.File.Filename == "" && p.Document.MIMEType == "application/pdf" {
+			part.File.Filename = "document.pdf"
+		}
+	}
+
 	return part
+}
+
+func validateChatDocumentParts(messages []llm.Message) error {
+	for _, message := range messages {
+		for _, part := range message.Content.MultipleContent {
+			if part.Type != "document" || part.Document == nil {
+				continue
+			}
+			if part.Document.FileID == "" && part.Document.URL != "" && !strings.HasPrefix(part.Document.URL, "data:") {
+				return fmt.Errorf("%w: OpenAI Chat file inputs require file_id or a data URL in file_data", transformer.ErrInvalidRequest)
+			}
+		}
+	}
+
+	return nil
 }
 
 // normalizeContentPartType maps Responses-only text part types onto the plain

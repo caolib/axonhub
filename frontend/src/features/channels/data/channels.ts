@@ -1,7 +1,9 @@
 import { z } from 'zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
 import { pageInfoSchema } from '@/gql/pagination';
+import { shouldNotifyChannelQueryError } from './channel-query-error';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useErrorHandler } from '@/hooks/use-error-handler';
@@ -32,6 +34,7 @@ import {
   TestAPIKeyResult,
   testAPIKeyResultSchema,
 } from './schema';
+import { mergeChannelSettingsForUpdate } from '../utils/merge';
 
 const QUERY_CHANNEL_NAMES_QUERY = `
   query QueryChannelNames($input: QueryChannelInput!) {
@@ -115,6 +118,11 @@ const CREATE_CHANNEL_MUTATION = `
           pattern
           regex
         }
+        modelProtocols {
+          model
+          apiFormats
+          enabled
+        }
       }
       orderingWeight
       remark
@@ -183,6 +191,11 @@ const DUPLICATE_CHANNEL_MUTATION = `
         retryableErrorPatterns {
           pattern
           regex
+        }
+        modelProtocols {
+          model
+          apiFormats
+          enabled
         }
       }
       orderingWeight
@@ -253,6 +266,11 @@ const BULK_CREATE_CHANNELS_MUTATION = `
           pattern
           regex
         }
+        modelProtocols {
+          model
+          apiFormats
+          enabled
+        }
       }
       orderingWeight
       remark
@@ -321,6 +339,11 @@ const UPDATE_CHANNEL_MUTATION = `
         retryableErrorPatterns {
           pattern
           regex
+        }
+        modelProtocols {
+          model
+          apiFormats
+          enabled
         }
       }
       orderingWeight
@@ -505,6 +528,11 @@ const BULK_IMPORT_CHANNELS_MUTATION = `
           retryableErrorPatterns {
             pattern
             regex
+          }
+          modelProtocols {
+            model
+            apiFormats
+            enabled
           }
         }
       }
@@ -731,6 +759,11 @@ const BULK_UPDATE_CHANNEL_ORDERING_MUTATION = `
             pattern
             regex
           }
+          modelProtocols {
+            model
+            apiFormats
+            enabled
+          }
         }
       }
     }
@@ -884,6 +917,11 @@ const QUERY_CHANNELS_QUERY = `
               pattern
               regex
             }
+            modelProtocols {
+              model
+              apiFormats
+              enabled
+            }
           }
           orderingWeight
           errorMessage
@@ -998,7 +1036,7 @@ export function useQueryChannels(
   const { handleError } = useErrorHandler();
   const { t } = useTranslation();
 
-  return useQuery({
+  const query = useQuery({
     enabled: !options?.disableAutoFetch,
     queryKey: [
       'channels',
@@ -1013,19 +1051,25 @@ export function useQueryChannels(
       variables?.before,
     ],
     queryFn: async () => {
-      try {
-        const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(QUERY_CHANNELS_QUERY, { input: variables });
-        return channelConnectionSchema.parse(data?.queryChannels);
-      } catch (error) {
-        handleError(error, t('common.errors.internalServerError'));
-        throw error;
-      }
+      const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(QUERY_CHANNELS_QUERY, { input: variables });
+      return channelConnectionSchema.parse(data?.queryChannels);
     },
     // Poll so the live limiter snapshot (in-flight / queue) stays roughly fresh.
     // 5s is light traffic; pause when the tab is hidden.
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
+    // Keep showing the previous data while a refetch is in-flight or fails,
+    // so the component never renders with data = undefined and crashes.
+    placeholderData: keepPreviousData,
   });
+
+  useEffect(() => {
+    if (shouldNotifyChannelQueryError(query.error, query.data !== undefined, query.isPlaceholderData)) {
+      handleError(query.error, t('common.errors.internalServerError'));
+    }
+  }, [handleError, query.data, query.error, query.isPlaceholderData, t]);
+
+  return query;
 }
 
 export function useAllChannelNames(options?: { enabled?: boolean }) {
@@ -1149,6 +1193,45 @@ export function useBulkCreateChannels() {
   });
 }
 
+async function updateChannelRequest(id: string, input: UpdateChannelInput): Promise<Channel> {
+  const data = await graphqlRequest<{ updateChannel: Channel }>(UPDATE_CHANNEL_MUTATION, { id, input });
+  return channelSchema.parse(data.updateChannel);
+}
+
+async function fetchLatestChannel(channelID: string): Promise<Channel> {
+  const data = await graphqlRequest<{ queryChannels: ChannelConnection }>(QUERY_CHANNELS_QUERY, {
+    input: {
+      first: 1,
+      where: { id: channelID },
+    },
+  });
+  const channels = channelConnectionSchema.parse(data.queryChannels);
+  const channel = channels.edges[0]?.node;
+  if (!channel) {
+    throw new Error(`Channel ${channelID} was not found`);
+  }
+  return channel;
+}
+
+const channelSettingsUpdateQueues = new Map<string, Promise<void>>();
+
+function enqueueChannelSettingsUpdate<T>(channelID: string, operation: () => Promise<T>): Promise<T> {
+  const previous = channelSettingsUpdateQueues.get(channelID) ?? Promise.resolve();
+  let release: () => void = () => {};
+  const completion = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  channelSettingsUpdateQueues.set(channelID, completion);
+
+  const queued = previous.then(operation);
+  return queued.finally(() => {
+    release();
+    if (channelSettingsUpdateQueues.get(channelID) === completion) {
+      channelSettingsUpdateQueues.delete(channelID);
+    }
+  });
+}
+
 export function useUpdateChannel() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -1156,13 +1239,47 @@ export function useUpdateChannel() {
 
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: UpdateChannelInput }) => {
-      const data = await graphqlRequest<{ updateChannel: Channel }>(UPDATE_CHANNEL_MUTATION, { id, input });
-      return channelSchema.parse(data.updateChannel);
+      return updateChannelRequest(id, input);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['channel', data.id] });
       toast.success(t('channels.messages.updateSuccess'));
+    },
+    onError: (error) => {
+      handleError(error, { context: t('channels.dialogs.edit.title') });
+    },
+  });
+}
+
+export interface UpdateChannelSettingsMutationInput {
+  id: string;
+  patch: Partial<ChannelSettings>;
+  input?: Omit<UpdateChannelInput, 'settings'>;
+}
+
+/**
+ * Updates one settings patch against the latest server snapshot. Mutations for
+ * the same channel are serialized so a stale dialog cannot overwrite a patch
+ * that was committed immediately before it.
+ */
+export function useUpdateChannelSettings() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
+
+  return useMutation({
+    mutationFn: ({ id, patch, input }: UpdateChannelSettingsMutationInput) =>
+      enqueueChannelSettingsUpdate(id, async () => {
+        const latest = await fetchLatestChannel(id);
+        return updateChannelRequest(id, {
+          ...input,
+          settings: mergeChannelSettingsForUpdate(latest.settings, patch),
+        });
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      queryClient.invalidateQueries({ queryKey: ['channel', data.id] });
     },
     onError: (error) => {
       handleError(error, { context: t('channels.dialogs.edit.title') });
