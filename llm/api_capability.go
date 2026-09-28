@@ -41,6 +41,7 @@ func CapableAPIFormats(requestType RequestType) map[string]struct{} {
 			APIFormatOpenAIImageGeneration.String(): {},
 			APIFormatOpenAIImageEdit.String():       {},
 			APIFormatOpenAIImageVariation.String():  {},
+			APIFormatModelScopeImage.String():       {},
 		}
 	case RequestTypeRerank:
 		return map[string]struct{}{
@@ -50,6 +51,7 @@ func CapableAPIFormats(requestType RequestType) map[string]struct{} {
 		return map[string]struct{}{
 			APIFormatOpenAIVideo.String():   {},
 			APIFormatSeedanceVideo.String(): {},
+			APIFormatZenmuxVideo.String():   {},
 		}
 	case RequestTypeSpeech:
 		return map[string]struct{}{
@@ -62,6 +64,10 @@ func CapableAPIFormats(requestType RequestType) map[string]struct{} {
 	case RequestTypeTranslation:
 		return map[string]struct{}{
 			APIFormatOpenAITranslation.String(): {},
+		}
+	case RequestTypeSystemOne:
+		return map[string]struct{}{
+			APIFormatTypeSafeSystemOne.String(): {},
 		}
 	default:
 		return nil
@@ -82,6 +88,8 @@ func RequestTypeForModelType(modelType string) RequestType {
 		return RequestTypeImage
 	case "video_generation":
 		return RequestTypeVideo
+	case "systemone", "system_one":
+		return RequestTypeSystemOne
 	default:
 		return ""
 	}

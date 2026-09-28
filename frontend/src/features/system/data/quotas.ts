@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/gql/graphql';
+import type { ChannelQuotaRoutingMode } from '@/features/channels/data/schema';
 
 const CHECK_PROVIDER_QUOTAS_QUERY = `
   mutation CheckProviderQuotas {
@@ -21,6 +22,9 @@ const PROVIDER_QUOTA_STATUSES_QUERY = `
           id
           name
           type
+          settings {
+            quotaRoutingMode
+          }
           providerQuotaStatus {
             status
             nextResetAt
@@ -61,6 +65,7 @@ export type ProviderQuotaResetList = {
 type ProviderQuotaDataCommon = {
   plan_type?: string;
   error?: string;
+  error_code?: string;
   _resets?: ProviderQuotaResetList;
 };
 
@@ -253,6 +258,7 @@ export type ProviderOpenCodeGoQuotaData = ProviderQuotaDataCommon & {
   };
 };
 
+
 export type KimiCodeUsageRow = {
   label: string;
   used: number;
@@ -297,11 +303,29 @@ export type ZhipuWindowRow = {
   usedPercent: number;
   status: string;
   resetAt?: string;
+  usage?: number;
+  used?: number;
+  remaining?: number;
+};
+
+// One API key of a channel that draws from several accounts. The backend keeps
+// every account of a multi-key channel in this shape so the UI can render them
+// side by side.
+export type ZhipuAccountQuota = {
+  ref?: string;
+  suffix?: string;
+  disabled?: boolean;
+  status?: string;
+  ready?: boolean;
+  level?: string;
+  error?: string;
+  rows?: ZhipuWindowRow[];
 };
 
 export type ProviderZhipuQuotaData = ProviderQuotaDataCommon & {
   rows?: ZhipuWindowRow[];
   level?: string;
+  accounts?: ZhipuAccountQuota[];
 };
 
 export type ProviderZenmuxQuotaPlan = {
@@ -428,6 +452,43 @@ export function isClineUnavailablePassQuotaData(qd: ProviderClineQuotaData): qd 
   return 'pass_state' in qd && qd.pass_state === 'unavailable';
 }
 
+export type CommandCodeQuotaWindow = {
+  used_usd?: number;
+  cap_usd?: number;
+  usage_percent?: number;
+  reset_time?: string;
+};
+
+export type ProviderCommandCodeQuotaData = ProviderQuotaDataCommon & {
+  plan_id?: string;
+  plan_label?: string;
+  subscription_status?: string;
+  current_period_end?: string;
+  credits?: {
+    monthly_remaining_usd?: number;
+    monthly_limit_usd?: number;
+    purchased_credits_usd?: number;
+  };
+  windows?: {
+    five_hour?: CommandCodeQuotaWindow;
+    weekly?: CommandCodeQuotaWindow;
+  };
+};
+
+export type OllamaQuotaWindow = {
+  usage_percent?: number;
+  status?: string;
+  percent_remaining?: number;
+  reset_time?: string;
+};
+
+export type ProviderOllamaQuotaData = ProviderQuotaDataCommon & {
+  windows?: {
+    '5h'?: OllamaQuotaWindow;
+    weekly?: OllamaQuotaWindow;
+  };
+};
+
 /**
  * A single limit window as normalized by the backend and stashed under
  * `quotaData._limits`. `periodCost` is what the channel cost in the current
@@ -441,6 +502,7 @@ export type ProviderQuotaLimit = {
   usageRatio: number;
   ready: boolean;
   window?: string;
+  account?: string;
   nextResetAt?: string;
   periodStart?: string;
   periodCost?: number;
@@ -455,6 +517,58 @@ function optionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+const NORMALIZED_QUOTA_STATUSES = ['available', 'warning', 'exhausted', 'unknown'] as const;
+type NormalizedQuotaStatus = (typeof NORMALIZED_QUOTA_STATUSES)[number];
+
+function isNormalizedQuotaStatus(value: unknown): value is NormalizedQuotaStatus {
+  return NORMALIZED_QUOTA_STATUSES.some((status) => status === value);
+}
+
+function requiredString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function parseQuotaLimit(entry: unknown): ProviderQuotaLimit | undefined {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return undefined;
+
+  const limit = entry as Record<string, unknown>;
+  const type = requiredString(limit.type);
+  const window = requiredString(limit.window);
+  const account = optionalString(limit.account);
+  if (!type || !window || !isNormalizedQuotaStatus(limit.status)) return undefined;
+
+  const usageRatio = optionalNumber(limit.usageRatio);
+  if (usageRatio === undefined || usageRatio < 0 || usageRatio > 1) return undefined;
+
+  if (limit.ready !== undefined && typeof limit.ready !== 'boolean') return undefined;
+
+  const nextResetAt = optionalString(limit.nextResetAt);
+  if (limit.nextResetAt !== undefined && nextResetAt === undefined) return undefined;
+  if (nextResetAt !== undefined && Number.isNaN(Date.parse(nextResetAt))) return undefined;
+
+  const periodStart = optionalString(limit.periodStart);
+  if (limit.periodStart !== undefined && periodStart === undefined) return undefined;
+
+  const periodCost = optionalNumber(limit.periodCost);
+  if (limit.periodCost !== undefined && periodCost === undefined) return undefined;
+
+  const periodQuota = optionalNumber(limit.periodQuota);
+  if (limit.periodQuota !== undefined && periodQuota === undefined) return undefined;
+
+  return {
+    type,
+    status: limit.status,
+    usageRatio,
+    ready: limit.ready === true,
+    window,
+    account,
+    nextResetAt,
+    periodStart,
+    periodCost,
+    periodQuota,
+  };
+}
+
 export function parseQuotaLimits(quotaData: unknown): ProviderQuotaLimit[] {
   if (typeof quotaData !== 'object' || quotaData === null) return [];
 
@@ -462,22 +576,8 @@ export function parseQuotaLimits(quotaData: unknown): ProviderQuotaLimit[] {
   if (!Array.isArray(raw)) return [];
 
   return raw.flatMap((entry) => {
-    if (typeof entry !== 'object' || entry === null) return [];
-    const limit = entry as Record<string, unknown>;
-
-    return [
-      {
-        type: typeof limit.type === 'string' ? limit.type : '',
-        status: typeof limit.status === 'string' ? limit.status : 'unknown',
-        usageRatio: optionalNumber(limit.usageRatio) ?? 0,
-        ready: limit.ready === true,
-        window: optionalString(limit.window),
-        nextResetAt: optionalString(limit.nextResetAt),
-        periodStart: optionalString(limit.periodStart),
-        periodCost: optionalNumber(limit.periodCost),
-        periodQuota: optionalNumber(limit.periodQuota),
-      },
-    ];
+    const parsed = parseQuotaLimit(entry);
+    return parsed ? [parsed] : [];
   });
 }
 
@@ -557,6 +657,8 @@ export type ProviderQuotaChannel = {
   // Names of the channels sharing this account, only set on the representative
   // entry built by the quota popover grouping.
   sharedAccountNames?: string[];
+  // Quota routing mode declared on the channel settings; INHERIT defers to the global default.
+  quotaRoutingMode: ChannelQuotaRoutingMode;
   quotaStatus: {
     status: 'available' | 'warning' | 'exhausted' | 'unknown';
     nextResetAt: string | null;
@@ -631,7 +733,13 @@ export type ProviderQuotaChannel = {
       };
     }
   | {
-      type: 'zenmux' | 'zenmux_responses' | 'zenmux_anthropic' | 'zenmux_gemini';
+      type: 'zai' | 'zai_anthropic';
+      quotaStatus: {
+        quotaData: ProviderZhipuQuotaData;
+      };
+    }
+  | {
+      type: 'zenmux' | 'zenmux_responses' | 'zenmux_anthropic' | 'zenmux_gemini' | 'zenmux_video';
       quotaStatus: {
         quotaData: ProviderZenmuxQuotaData;
       };
@@ -678,6 +786,18 @@ export type ProviderQuotaChannel = {
         quotaData: ProviderQuotaDataCommon;
       };
     }
+  | {
+      type: 'commandcode' | 'commandcode_anthropic';
+      quotaStatus: {
+        quotaData: ProviderCommandCodeQuotaData;
+      };
+    }
+  | {
+      type: 'ollama' | 'ollama_anthropic';
+      quotaStatus: {
+        quotaData: ProviderOllamaQuotaData;
+      };
+    }
 );
 
 type ProviderQuotaStatusNode = {
@@ -693,6 +813,7 @@ type QueryChannelNode = {
   id: string;
   name: string;
   type: string;
+  settings: { quotaRoutingMode: ChannelQuotaRoutingMode } | null;
   providerQuotaStatus: ProviderQuotaStatusNode | null;
 };
 
@@ -719,6 +840,7 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
   const base = {
     id: node.id,
     name: node.name,
+    quotaRoutingMode: node.settings?.quotaRoutingMode ?? 'INHERIT',
     accountKey: optionalString(quotaStatus.accountKey),
     quotaStatus: {
       status: quotaStatus.status,
@@ -728,10 +850,16 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
     },
   };
 
-  if (node.type === 'zenmux' || node.type === 'zenmux_responses' || node.type === 'zenmux_anthropic' || node.type === 'zenmux_gemini') {
+  if (
+    node.type === 'zenmux' ||
+    node.type === 'zenmux_responses' ||
+    node.type === 'zenmux_anthropic' ||
+    node.type === 'zenmux_gemini' ||
+    node.type === 'zenmux_video'
+  ) {
     return {
       ...base,
-      type: node.type as 'zenmux' | 'zenmux_responses' | 'zenmux_anthropic' | 'zenmux_gemini',
+      type: node.type as 'zenmux' | 'zenmux_responses' | 'zenmux_anthropic' | 'zenmux_gemini' | 'zenmux_video',
       quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderZenmuxQuotaData },
     };
   }
@@ -809,6 +937,13 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
       quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderZhipuQuotaData },
     };
   }
+  if (node.type === 'zai' || node.type === 'zai_anthropic') {
+    return {
+      ...base,
+      type: node.type as 'zai' | 'zai_anthropic',
+      quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderZhipuQuotaData },
+    };
+  }
   if (node.type === 'openai' || node.type === 'openai_responses') {
     const typeVal = node.type as 'openai' | 'openai_responses';
     if (providerType === 'wafer') {
@@ -859,6 +994,20 @@ function parseChannelNode(node: QueryChannelNodeWithQuota): ProviderQuotaChannel
     };
   }
 
+  if (node.type === 'commandcode' || node.type === 'commandcode_anthropic') {
+    return {
+      ...base,
+      type: node.type as 'commandcode' | 'commandcode_anthropic',
+      quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderCommandCodeQuotaData },
+    };
+  }
+  if (node.type === 'ollama' || node.type === 'ollama_anthropic') {
+    return {
+      ...base,
+      type: node.type as 'ollama' | 'ollama_anthropic',
+      quotaStatus: { ...base.quotaStatus, quotaData: node.providerQuotaStatus.quotaData as ProviderOllamaQuotaData },
+    };
+  }
   return {
     ...base,
     type: node.type as ProviderQuotaChannel['type'],
@@ -886,10 +1035,10 @@ export function useProviderQuotaStatuses() {
     .filter(hasProviderQuotaStatus)
     .filter((c) => {
       // Skip channels that have no credentials configured, since they cannot be
-      // checked and only add noise to the quota popover. Other errors are still
-      // shown so admins can spot credential/permission issues.
-      const quotaData = c.providerQuotaStatus.quotaData as { error?: string } | undefined;
-      return quotaData?.error !== 'channel has no credentials';
+      // checked and only add noise to the quota popover. Other failures remain
+      // available with their generic status for administrators to inspect.
+      const quotaData = c.providerQuotaStatus.quotaData as { error?: string; error_code?: string } | undefined;
+      return quotaData?.error_code !== 'missing_credentials' && quotaData?.error !== 'channel has no credentials';
     })
     .map(parseChannelNode);
 

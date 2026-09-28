@@ -10,6 +10,7 @@ export const apiFormatSchema = z.enum([
   'openai/image_variation',
   'openai/embeddings',
   'openai/video',
+  'zenmux/video',
   'openai/moderations',
   'openai/alpha_search',
   'openai/audio_speech',
@@ -22,6 +23,7 @@ export const apiFormatSchema = z.enum([
   'aisdk/datastream',
   'jina/rerank',
   'jina/embeddings',
+  'typesafe/systemone',
   'ollama/chat',
 ]);
 
@@ -34,6 +36,7 @@ export const configurableChannelEndpointApiFormats = [
   'openai/image_edit',
   'openai/image_variation',
   'openai/embeddings',
+  'zenmux/video',
   'openai/moderations',
   'openai/alpha_search',
   'openai/audio_speech',
@@ -44,6 +47,7 @@ export const configurableChannelEndpointApiFormats = [
   'gemini/embeddings',
   'jina/rerank',
   'jina/embeddings',
+  'typesafe/systemone',
 ] as const;
 
 export const configurableChannelEndpointApiFormatSchema = z.enum(configurableChannelEndpointApiFormats);
@@ -56,6 +60,15 @@ export const channelEndpointSchema = z.object({
   transport: z.enum(['http', 'websocket']).optional().or(z.literal('')),
 });
 export type ChannelEndpoint = z.infer<typeof channelEndpointSchema>;
+
+// Channel endpoint auto-detection result
+export const detectedChannelEndpointSchema = z.object({
+  apiFormat: z.string().min(1),
+  supported: z.boolean(),
+  statusCode: z.number().int().optional().nullable(),
+  reason: z.string(),
+});
+export type DetectedChannelEndpoint = z.infer<typeof detectedChannelEndpointSchema>;
 
 // Channel Types
 export const channelTypeSchema = z.enum([
@@ -109,6 +122,7 @@ export const channelTypeSchema = z.enum([
   'bailian_anthropic',
   'moonshot_coding',
   'jina',
+  'typesafe',
   'github',
   'github_copilot',
   'claudecode',
@@ -128,6 +142,9 @@ export const channelTypeSchema = z.enum([
   'zenmux_responses',
   'zenmux_anthropic',
   'zenmux_gemini',
+  'zenmux_video',
+  'commandcode',
+  'commandcode_anthropic',
 ]);
 export type ChannelType = z.infer<typeof channelTypeSchema>;
 
@@ -145,6 +162,14 @@ export const apiKeyAutoDisableActionSchema = z.enum([
   'permanent_disable_delete',
 ]);
 export type APIKeyAutoDisableAction = z.infer<typeof apiKeyAutoDisableActionSchema>;
+
+export const apiKeyAutoDisableModeSchema = z.enum(['inherit', 'custom', 'off']);
+export type APIKeyAutoDisableMode = z.infer<typeof apiKeyAutoDisableModeSchema>;
+
+/** GraphQL may still emit "" for unset mode; treat it as null before enum checks. */
+export function coerceApiKeyAutoDisableMode(value: unknown): unknown {
+  return value === '' ? null : value;
+}
 
 export const apiKeyAutoDisableRuleSchema = z.object({
   statusCodes: z.array(z.number().int().min(100).max(599)).optional().nullable(),
@@ -173,6 +198,7 @@ export const apiKeyAutoDisableRuleFormSchema = apiKeyAutoDisableRuleSchema
 
 export const channelPoliciesSchema = z.object({
   stream: capabilityPolicySchema.optional(),
+  apiKeyAutoDisableMode: z.preprocess(coerceApiKeyAutoDisableMode, apiKeyAutoDisableModeSchema.optional().nullable()),
   apiKeyAutoDisableRules: z.array(apiKeyAutoDisableRuleSchema).optional().nullable(),
 });
 export type ChannelPolicies = z.infer<typeof channelPoliciesSchema>;
@@ -295,6 +321,26 @@ export const modelProtocolSchema = z.object({
 });
 export type ModelProtocol = z.infer<typeof modelProtocolSchema>;
 
+// Provider quota collection settings stored inside channel settings. Mirrors the
+// GraphQL `CommandCodeQuotaSettings` / `ChannelProviderQuotaSettings` types; it
+// is used for the Command Code billing-quota cookie, kept separate from API
+// credentials.
+export const commandCodeQuotaSettingsSchema = z.object({
+  authCookie: z.string().optional().nullable(),
+});
+export type CommandCodeQuotaSettings = z.infer<typeof commandCodeQuotaSettingsSchema>;
+
+export const ollamaQuotaSettingsSchema = z.object({
+  authCookie: z.string().optional().nullable(),
+});
+export type OllamaQuotaSettings = z.infer<typeof ollamaQuotaSettingsSchema>;
+
+export const channelProviderQuotaSettingsSchema = z.object({
+  commandCode: commandCodeQuotaSettingsSchema.optional().nullable(),
+  ollama: ollamaQuotaSettingsSchema.optional().nullable(),
+});
+export type ChannelProviderQuotaSettings = z.infer<typeof channelProviderQuotaSettingsSchema>;
+
 // Channel Settings
 export const channelSettingsSchema = z.object({
   extraModelPrefix: z.string().optional(),
@@ -313,9 +359,12 @@ export const channelSettingsSchema = z.object({
   retryableStatusCodes: z.array(z.number().int().min(400).max(599)).optional().nullable(),
   retryableErrorPatterns: z.array(retryableErrorPatternSchema).optional().nullable(),
   modelProtocols: z.array(modelProtocolSchema).optional().nullable(),
+  providerQuota: channelProviderQuotaSettingsSchema.optional().nullable(),
+  quotaRoutingMode: z.enum(['INHERIT', 'IGNORE_QUOTA', 'REMOVE_ON_EXHAUSTED', 'BACKPRESSURE']).optional(),
 });
 
 export type ChannelSettings = z.infer<typeof channelSettingsSchema>;
+export type ChannelQuotaRoutingMode = NonNullable<ChannelSettings['quotaRoutingMode']>;
 
 // Channel Model Entry
 export const channelModelEntrySchema = z.object({
@@ -355,6 +404,16 @@ export const channelCredentialsSchema = z.object({
 });
 export type ChannelCredentials = z.infer<typeof channelCredentialsSchema>;
 
+export const providerQuotaStatusSchema = z.object({
+  status: z.enum(['available', 'warning', 'exhausted', 'unknown']),
+  nextResetAt: z.string().optional().nullable(),
+  ready: z.boolean(),
+  quotaData: z.record(z.string(), z.unknown()),
+  providerType: z.string(),
+  accountKey: z.string().optional().nullable(),
+});
+export type ProviderQuotaStatus = z.infer<typeof providerQuotaStatusSchema>;
+
 // Disabled API Key
 export const disabledAPIKeySchema = z.object({
   key: z.string(),
@@ -381,8 +440,9 @@ export const channelSchema = z.object({
   status: channelStatusSchema,
   policies: channelPoliciesSchema.optional().nullable(),
   credentials: channelCredentialsSchema.optional().nullable(),
+  providerQuotaStatus: providerQuotaStatusSchema.optional().nullable(),
   disabledAPIKeys: z.array(disabledAPIKeySchema).optional().nullable(),
-  supportedModels: z.array(z.string()),
+  supportedModels: z.array(z.string()).default([]),
   autoSyncSupportedModels: z.boolean().default(false),
   autoSyncModelPattern: z.string().optional().default(''),
   manualModels: z.array(z.string()).optional().default([]).nullable(),
@@ -528,9 +588,7 @@ function validateOAuthCredentials(type: string, apiKey: string | undefined, ctx:
   if (requiresJSON && !apiKey.trim().startsWith('{')) {
     ctx.addIssue({
       code: 'custom' as const,
-      message: isCopilot
-        ? 'channels.dialogs.oauth.errors.copilotCredentialsInvalid'
-        : 'channels.dialogs.oauth.errors.credentialsInvalid',
+      message: isCopilot ? 'channels.dialogs.oauth.errors.copilotCredentialsInvalid' : 'channels.dialogs.oauth.errors.credentialsInvalid',
       path: ['credentials', 'apiKey'],
     });
     return;
@@ -883,6 +941,31 @@ export const bulkUpdateChannelOrderingResultSchema = z.object({
   channels: z.array(channelSchema),
 });
 export type BulkUpdateChannelOrderingResult = z.infer<typeof bulkUpdateChannelOrderingResultSchema>;
+
+export const bulkAutoDisableActionSchema = z.enum(['write_rules', 'inherit', 'off']);
+export type BulkAutoDisableAction = z.infer<typeof bulkAutoDisableActionSchema>;
+
+export const bulkUpdateChannelAutoDisableInputSchema = z.object({
+  channelIDs: z.array(z.string()).min(1),
+  action: bulkAutoDisableActionSchema,
+  rules: z.array(apiKeyAutoDisableRuleSchema).optional(),
+});
+export type BulkUpdateChannelAutoDisableInput = z.infer<typeof bulkUpdateChannelAutoDisableInputSchema>;
+
+export const channelAutoDisableCopySourceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  policies: channelPoliciesSchema.optional().nullable(),
+});
+export type ChannelAutoDisableCopySource = z.infer<typeof channelAutoDisableCopySourceSchema>;
+
+// Mutation only selects id/name/policies; do not parse with the full channelSchema.
+export const bulkUpdateChannelAutoDisablePayloadSchema = z.object({
+  success: z.boolean(),
+  updated: z.number(),
+  channels: z.array(channelAutoDisableCopySourceSchema),
+});
+export type BulkUpdateChannelAutoDisablePayload = z.infer<typeof bulkUpdateChannelAutoDisablePayloadSchema>;
 
 // Re-export template types from templates.ts
 export type {

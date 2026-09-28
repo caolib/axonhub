@@ -28,14 +28,20 @@ jobs:
 
       - name: Commit and push
         run: |
-          if git diff --quiet frontend/src/features/models/data/providers.json; then
-            echo "No changes in providers.json, nothing to push."
+          if git diff --quiet -- \
+            frontend/src/features/models/data/providers.json \
+            internal/server/biz/catalogdata/providers.json \
+            internal/server/biz/catalogdata/models.json; then
+            echo "No changes in model catalog data, nothing to push."
             exit 0
           fi
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add frontend/src/features/models/data/providers.json
+          git add -- \
+            frontend/src/features/models/data/providers.json \
+            internal/server/biz/catalogdata/providers.json \
+            internal/server/biz/catalogdata/models.json
           git commit -m 'chore: sync model developers data'
 
           # Rebase in case unstable moved while this job was running.

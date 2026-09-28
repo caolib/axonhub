@@ -410,7 +410,9 @@ function filterProviders(data, allowedIds) {
 					: id;
 				const isTencentModel =
 					normalizedId === "hy3" ||
+					normalizedId === "hy4" ||
 					normalizedId.startsWith("hy3-") ||
+					normalizedId.startsWith("hy4-") ||
 					normalizedId.startsWith("hunyuan-");
 
 				if (!isTencentModel || mergedModels.has(normalizedId)) continue;
@@ -427,7 +429,7 @@ function filterProviders(data, allowedIds) {
 				models: Array.from(mergedModels.values()),
 			};
 			console.log(
-				`Merged ${mergedModels.size} Hy3/Hunyuan models into Tencent developer`,
+				`Merged ${mergedModels.size} Hy3/Hy4/Hunyuan models into Tencent developer`,
 			);
 		}
 	}
@@ -526,6 +528,26 @@ function sortModelsByDate(data) {
 	return data;
 }
 
+// Upstream (models.dev via PublicProviderConf) reshuffles provider keys every few
+// weeks, which turns a one-line data change into a whole-file git diff. Sorting keys
+// keeps unchanged data byte-identical, so sync PRs only show real changes.
+function sortObjectKeys(value) {
+	if (Array.isArray(value)) {
+		return value.map(sortObjectKeys);
+	}
+
+	if (isObject(value)) {
+		// null prototype: a source "__proto__" key must survive as an own property
+		const sorted = Object.create(null);
+		for (const key of Object.keys(value).sort()) {
+			sorted[key] = sortObjectKeys(value[key]);
+		}
+		return sorted;
+	}
+
+	return value;
+}
+
 function mergeWithModelsJson(data, modelsJsonPath) {
 	if (!fs.existsSync(modelsJsonPath)) {
 		console.log("models.json does not exist, skipping merge");
@@ -589,7 +611,10 @@ async function main() {
 		console.log("Sorting models by release date...");
 		sortModelsByDate(filtered);
 
-		const serialized = `${JSON.stringify(filtered, null, 2)}\n`;
+		console.log("Sorting object keys...");
+		const stable = sortObjectKeys(filtered);
+
+		const serialized = `${JSON.stringify(stable, null, 2)}\n`;
 		console.log("Writing to:", OUTPUT_PATH);
 		fs.writeFileSync(OUTPUT_PATH, serialized);
 

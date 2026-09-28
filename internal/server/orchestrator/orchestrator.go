@@ -48,27 +48,24 @@ func NewChatCompletionOrchestrator(
 	modelCircuitBreaker := biz.NewModelCircuitBreaker()
 
 	rateLimitStrategy := NewRateLimitAwareStrategy(rateLimitTracker, channelLimiterManager)
-	quotaStrategy := NewQuotaAwareStrategy(quotaProvider, systemService)
 
 	adaptiveLoadBalancer := NewLoadBalancer(systemService, channelService,
 		NewErrorAwareStrategy(channelService),
 		NewWeightRoundRobinStrategy(channelService),
 		NewLatencyAwareStrategy(channelService),
 		rateLimitStrategy,
-		quotaStrategy,
 	)
 
 	failoverLoadBalancer := NewLoadBalancer(systemService, channelService,
-		NewWeightStrategy(), NewRandomStrategy(), rateLimitStrategy, quotaStrategy)
+		NewWeightStrategy(), NewRandomStrategy(), rateLimitStrategy)
 
 	circuitBreakerLoadBalancer := NewLoadBalancer(systemService, channelService,
-		NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(modelCircuitBreaker), rateLimitStrategy, quotaStrategy)
+		NewWeightStrategy(), NewModelAwareCircuitBreakerStrategy(modelCircuitBreaker), rateLimitStrategy)
 
 	roundRobinHealthFilter := NewRoundRobinHealthStrategy(channelService)
 	roundRobinLoadBalancer := NewLoadBalancer(systemService, channelService,
 		NewRoundRobinStrategy(channelService),
 		rateLimitStrategy,
-		quotaStrategy,
 	).WithoutWeightTieBreaker().WithRoundRobinHealthFilter(roundRobinHealthFilter)
 
 	return &ChatCompletionOrchestrator{
@@ -82,7 +79,6 @@ func NewChatCompletionOrchestrator(
 		PromptProvider:     promptService,
 		PromptProtecter:    promptProtectionRuleService,
 		Middlewares: []pipeline.Middleware{
-			cc.StripBillingHeaderCCH(),
 			cc.SystemCacheCompatibility(),
 			stream.EnsureUsage(),
 		},
@@ -195,11 +191,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 	if log.DebugEnabled(ctx) {
 		log.Debug(ctx, "chat request received",
-			log.String("request_body", string(request.Body)),
-			log.Any("request_headers", request.Headers),
-			log.Any("retry_policy", retryPolicy),
-			log.String("system_load_balance_strategy", retryPolicy.LoadBalancerStrategy),
-			log.String("system_trace_sticky_mode", string(retryPolicy.TraceStickyMode)),
+			inboundRequestDebugFields(request, retryPolicy)...,
 		)
 	}
 
@@ -249,8 +241,9 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 
 	// Add global middlewares
 	middlewares = append(middlewares, processor.Middlewares...)
+	middlewares = append(middlewares, newBillingSystemMessageMiddleware(state))
 
-	inbound, outbound := NewPersistentTransformers(state, processor.Inbound, processor.Middlewares...)
+	inbound, outbound := NewPersistentTransformers(state, processor.Inbound, middlewares...)
 
 	// Add inbound middlewares (executed after inbound.TransformRequest)
 	middlewares = append(middlewares,
@@ -278,7 +271,10 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 		applyOverrideRequestBody(outbound),
 		// applyUserAgentPassThrough runs before header overrides to set the initial
 		// User-Agent value (either from client pass-through or default "axonhub/1.0").
-		// This allows override headers to modify the User-Agent if configured.
+		// A provider-required User-Agent already set by the outbound transformer
+		// (e.g. GitHubCopilotChat on Copilot channels) is preserved when
+		// pass-through is disabled. Override headers can still modify the
+		// User-Agent if configured.
 		applyUserAgentPassThrough(outbound, processor.SystemService),
 		applyOverrideRequestHeaders(outbound),
 		// Remove transport-incompatible fields after pass-through and overrides,
@@ -334,6 +330,7 @@ func (processor *ChatCompletionOrchestrator) Process(ctx context.Context, reques
 				requestExec.ID,
 				err,
 				nil,
+				"",
 			); updateErr != nil {
 				log.Warn(persistCtx, "Failed to update request execution status from error", log.Cause(updateErr))
 			}

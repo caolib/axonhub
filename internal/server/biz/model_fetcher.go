@@ -17,6 +17,7 @@ import (
 
 	"github.com/looplj/axonhub/internal/ent"
 	"github.com/looplj/axonhub/internal/ent/channel"
+	"github.com/looplj/axonhub/internal/objects"
 	"github.com/looplj/axonhub/llm/httpclient"
 	"github.com/looplj/axonhub/llm/transformer/anthropic/claudecode"
 	"github.com/looplj/axonhub/llm/transformer/antigravity"
@@ -177,6 +178,31 @@ var qiniuFallbackModels = []ModelIdentify{{ID: "deepseek-v3"}}
 
 func isQiniuChannelType(channelType channel.Type) bool {
 	return channelType == channel.TypeQiniu || channelType == channel.TypeQiniuAnthropic
+}
+
+func isCommandCodeChannelType(channelType channel.Type) bool {
+	return channelType == channel.TypeCommandcode || channelType == channel.TypeCommandcodeAnthropic
+}
+
+// Command Code exposes model IDs without protocol metadata. Its Anthropic
+// models currently use the Claude family prefixes, so route those models to
+// the Anthropic channel and keep the remaining models on the OpenAI channel.
+func isCommandCodeAnthropicModel(modelID string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(modelID))
+	return normalized == "claude" ||
+		strings.HasPrefix(normalized, "claude-") ||
+		strings.HasPrefix(normalized, "anthropic/claude-")
+}
+
+func filterCommandCodeModels(channelType channel.Type, models []ModelIdentify) []ModelIdentify {
+	if !isCommandCodeChannelType(channelType) {
+		return models
+	}
+
+	wantAnthropic := channelType == channel.TypeCommandcodeAnthropic
+	return lo.Filter(models, func(model ModelIdentify, _ int) bool {
+		return isCommandCodeAnthropicModel(model.ID) == wantAnthropic
+	})
 }
 
 func (f *ModelFetcher) getDefaultModelsByType(ctx context.Context, typ channel.Type) []ModelIdentify {
@@ -365,8 +391,9 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 	}
 
 	var (
-		apiKey      string
-		proxyConfig *httpclient.ProxyConfig
+		apiKey            string
+		proxyConfig       *httpclient.ProxyConfig
+		headerOverrideOps []objects.OverrideOperation
 	)
 
 	if input.APIKey != nil && *input.APIKey != "" {
@@ -406,6 +433,15 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 
 		if ch.Settings != nil {
 			proxyConfig = ch.Settings.Proxy
+
+			// The new schema field takes precedence; the legacy OverrideHeaders list is
+			// converted when the new field is absent (same precedence as
+			// (*Channel).GetHeaderOverrideOperations).
+			if ch.Settings.HeaderOverrideOperations != nil {
+				headerOverrideOps = ch.Settings.HeaderOverrideOperations
+			} else {
+				headerOverrideOps = objects.HeaderEntriesToOverrideOperations(ch.Settings.OverrideHeaders)
+			}
 		}
 	}
 
@@ -442,6 +478,14 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 			Error:  lo.ToPtr(fmt.Sprintf("invalid channel type: %v", err)),
 		}, nil
 	}
+	if isCommandCodeChannelType(channelType) {
+		if err := validateCommandCodeBaseURL(input.BaseURL); err != nil {
+			return &FetchModelsResult{
+				Models: []ModelIdentify{},
+				Error:  lo.ToPtr(err.Error()),
+			}, nil
+		}
+	}
 
 	modelsURL, authHeaders := f.prepareModelsEndpoint(channelType, input.BaseURL)
 
@@ -466,7 +510,10 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 		Headers: authHeaders,
 	}
 
-	if channelType.UsesAnthropicModelAPI() {
+	if isCommandCodeChannelType(channelType) {
+		// Command Code authenticates with a Bearer API key, never X-Api-Key.
+		req.Headers.Set("Authorization", "Bearer "+apiKey)
+	} else if channelType.UsesAnthropicModelAPI() {
 		req.Headers.Set("X-Api-Key", apiKey)
 	} else if channelType.IsGemini() {
 		req.Headers.Set("X-Goog-Api-Key", apiKey)
@@ -474,9 +521,19 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 		req.Headers.Set("Authorization", "Bearer "+apiKey)
 	}
 
+	if req.Headers == nil {
+		req.Headers = make(http.Header)
+	}
+	// Channel header overrides win over the standard auth headers, matching the
+	// chat/completion path.
+	ApplyModelFetchHeaderOverrides(req.Headers, headerOverrideOps)
+
 	httpClient := f.httpClient
 	if proxyConfig != nil {
 		httpClient = f.httpClient.WithProxy(proxyConfig)
+	}
+	if isCommandCodeChannelType(channelType) {
+		httpClient = httpClient.WithRejectHTTPSDowngrade()
 	}
 
 	if channelType.IsGemini() {
@@ -499,7 +556,7 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 		err  error
 	)
 
-	if channelType.UsesAnthropicModelAPI() {
+	if channelType.UsesAnthropicModelAPI() && !isCommandCodeChannelType(channelType) {
 		resp, err = httpClient.Do(ctx, req)
 		if err != nil || resp.StatusCode != http.StatusOK {
 			req.Headers.Del("X-Api-Key")
@@ -545,6 +602,10 @@ func (f *ModelFetcher) FetchModels(ctx context.Context, input FetchModelsInput) 
 			Models: []ModelIdentify{},
 			Error:  lo.ToPtr(fmt.Sprintf("failed to parse models response: %v", err)),
 		}, nil
+	}
+
+	if isCommandCodeChannelType(channelType) {
+		models = filterCommandCodeModels(channelType, models)
 	}
 
 	return &FetchModelsResult{
@@ -666,17 +727,50 @@ func (f *ModelFetcher) prepareModelsEndpoint(channelType channel.Type, baseURL s
 
 		return baseURL + "/v1/models", headers
 	case channelType == channel.TypeZhipuAnthropic || channelType == channel.TypeZaiAnthropic:
+		if useRawURL {
+			return baseURL + "/models", headers
+		}
+
 		baseURL = strings.TrimSuffix(baseURL, "/anthropic")
+
+		if strings.HasSuffix(baseURL, "/v1") {
+			return baseURL + "/models", headers
+		}
+
 		return baseURL + "/paas/v4/models", headers
 	case channelType == channel.TypeZai || channelType == channel.TypeZhipu:
+		if useRawURL {
+			return baseURL + "/models", headers
+		}
+
 		baseURL = strings.TrimSuffix(baseURL, "/v4")
+
+		if strings.HasSuffix(baseURL, "/v1") {
+			return baseURL + "/models", headers
+		}
+
 		return baseURL + "/v4/models", headers
 	case channelType == channel.TypeDoubao || channelType == channel.TypeVolcengine:
 		baseURL = strings.TrimSuffix(baseURL, "/v3")
+
 		return baseURL + "/v3/models", headers
 	case channelType == channel.TypeDoubaoAnthropic:
 		baseURL = strings.TrimSuffix(baseURL, "/compatible")
+
 		return baseURL + "/v3/models", headers
+	case isCommandCodeChannelType(channelType):
+		baseURL = strings.TrimSuffix(baseURL, "/anthropic")
+		baseURL = strings.TrimSuffix(baseURL, "/claude")
+
+		if useRawURL {
+			return baseURL + "/models", headers
+		}
+
+		if strings.HasSuffix(baseURL, "/v1") {
+			return baseURL + "/models", headers
+		}
+
+		return baseURL + "/v1/models", headers
 	case channelType.IsAnthropicLike():
 		baseURL = strings.TrimSuffix(baseURL, "/anthropic")
 		baseURL = strings.TrimSuffix(baseURL, "/claude")
