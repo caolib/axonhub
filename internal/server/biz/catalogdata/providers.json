@@ -8,6 +8,80 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "alibaba/qwen3.8-omni-flash",
+          "cost": {
+            "cache_read": 0.016,
+            "input": 0.15,
+            "output": 0.47
+          },
+          "description": "Qwen omni model for text, vision, audio, and multimodal agent tasks",
+          "display_name": "Qwen3.8 Omni Flash",
+          "extra_capabilities": {
+            "reasoning": {
+              "continuation": [
+                "thinking_blocks"
+              ],
+              "default_enabled": true,
+              "effort": "xhigh",
+              "effort_options": [
+                "none",
+                "low",
+                "medium",
+                "xhigh"
+              ],
+              "interleaved": true,
+              "mode": "effort",
+              "summaries": true,
+              "supported": true,
+              "visibility": "summary"
+            }
+          },
+          "family": "qwen",
+          "id": "qwen3.8-omni-flash",
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "last_updated": "2026-09-17",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "audio",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.8 Omni Flash",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "none",
+                "low",
+                "medium",
+                "xhigh"
+              ]
+            }
+          ],
+          "release_date": "2026-09-17",
+          "structured_output": true,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "alibaba/qwen3.8-flash",
           "cost": {
             "cache_read": 0.016,
             "cache_write": 0.2,
@@ -18,10 +92,28 @@
           "display_name": "Qwen3.8 Flash",
           "extra_capabilities": {
             "reasoning": {
+              "budget": {
+                "max": 262144,
+                "min": 0,
+                "unit": "tokens"
+              },
               "continuation": [
                 "thinking_blocks"
               ],
+              "default_enabled": true,
+              "effort": "xhigh",
+              "effort_options": [
+                "none",
+                "low",
+                "medium",
+                "xhigh"
+              ],
               "interleaved": true,
+              "mode": "effort",
+              "notes": [
+                "Prefer reasoning_effort; thinking_budget is an alternative, not an additional control.",
+                "Omitting both controls differs from explicitly selecting xhigh, which maps to 262144 budget tokens."
+              ],
               "summaries": true,
               "supported": true,
               "visibility": "summary"
@@ -58,8 +150,12 @@
               "type": "toggle"
             },
             {
+              "exclusive_with": [
+                "budget_tokens"
+              ],
               "type": "effort",
               "values": [
+                "none",
                 "low",
                 "medium",
                 "xhigh"
@@ -67,6 +163,7 @@
             },
             {
               "max": 262144,
+              "min": 0,
               "type": "budget_tokens"
             }
           ],
@@ -77,6 +174,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "alibaba/qwen3.8-max",
           "cost": {
             "cache_read": 0.25,
             "cache_write": 2.5,
@@ -87,10 +185,28 @@
           "display_name": "Qwen3.8 Max",
           "extra_capabilities": {
             "reasoning": {
+              "budget": {
+                "max": 262144,
+                "min": 0,
+                "unit": "tokens"
+              },
               "continuation": [
                 "thinking_blocks"
               ],
+              "default_enabled": true,
+              "effort": "xhigh",
+              "effort_options": [
+                "none",
+                "low",
+                "medium",
+                "xhigh"
+              ],
               "interleaved": true,
+              "mode": "effort",
+              "notes": [
+                "Prefer reasoning_effort; thinking_budget is an alternative, not an additional control.",
+                "Omitting both controls differs from explicitly selecting xhigh, which maps to 262144 budget tokens."
+              ],
               "summaries": true,
               "supported": true,
               "visibility": "summary"
@@ -128,8 +244,12 @@
               "type": "toggle"
             },
             {
+              "exclusive_with": [
+                "budget_tokens"
+              ],
               "type": "effort",
               "values": [
+                "none",
                 "low",
                 "medium",
                 "xhigh"
@@ -149,6 +269,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "deepseek/deepseek-v4-flash-0731",
           "cost": {
             "cache_read": 0.04,
             "input": 0.2,
@@ -212,6 +333,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "moonshotai/kimi-k3",
           "cost": {
             "cache_read": 0.3,
             "input": 3,
@@ -272,7 +394,94 @@
           "type": "chat"
         },
         {
+          "attachment": true,
+          "canonical_model_id": "alibaba/qwen3.7-flash",
+          "cost": {
+            "cache_read": 0.003,
+            "cache_write": 0.0375,
+            "input": 0.03,
+            "output": 0.13,
+            "tiers": [
+              {
+                "cache_read": 0.01,
+                "cache_write": 0.125,
+                "input": 0.1,
+                "output": 0.4,
+                "tier": {
+                  "size": 32000,
+                  "type": "context"
+                }
+              },
+              {
+                "cache_read": 0.02,
+                "cache_write": 0.25,
+                "input": 0.2,
+                "output": 0.8,
+                "tier": {
+                  "size": 256000,
+                  "type": "context"
+                }
+              }
+            ]
+          },
+          "description": "Lightweight multimodal Qwen model for high-throughput text, image, and video tasks",
+          "display_name": "Qwen3.7 Flash",
+          "extra_capabilities": {
+            "reasoning": {
+              "continuation": [
+                "thinking_blocks"
+              ],
+              "interleaved": true,
+              "summaries": true,
+              "supported": true,
+              "visibility": "summary"
+            }
+          },
+          "family": "qwen",
+          "id": "qwen3.7-flash",
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "last_updated": "2026-07-15",
+          "limit": {
+            "context": 1000000,
+            "input": 991808,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.7 Flash",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "toggle"
+            },
+            {
+              "max": 262144,
+              "type": "budget_tokens"
+            }
+          ],
+          "release_date": "2026-07-15",
+          "structured_output": true,
+          "temperature": true,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.2",
           "cost": {
             "cache_read": 0.28,
             "cache_write": 0,
@@ -337,24 +546,24 @@
           "type": "chat"
         },
         {
-          "attachment": false,
+          "attachment": true,
           "cost": {
-            "cache_read": 0.05,
-            "cache_write": 0.625,
+            "cache_read": 0.04,
+            "cache_write": 0.5,
             "context_over_200k": {
-              "cache_read": 0.2,
-              "cache_write": 2.5,
-              "input": 2,
-              "output": 6
+              "cache_read": 0.12,
+              "cache_write": 1.5,
+              "input": 1.2,
+              "output": 4.8
             },
-            "input": 0.5,
-            "output": 3,
+            "input": 0.4,
+            "output": 1.6,
             "tiers": [
               {
-                "cache_read": 0.2,
-                "cache_write": 2.5,
-                "input": 2,
-                "output": 6,
+                "cache_read": 0.12,
+                "cache_write": 1.5,
+                "input": 1.2,
+                "output": 4.8,
                 "tier": {
                   "size": 256000,
                   "type": "context"
@@ -366,11 +575,20 @@
           "display_name": "Qwen3.7 Plus",
           "extra_capabilities": {
             "reasoning": {
-              "supported": true
+              "continuation": [
+                "thinking_blocks"
+              ],
+              "interleaved": true,
+              "summaries": true,
+              "supported": true,
+              "visibility": "summary"
             }
           },
           "family": "qwen",
           "id": "qwen3.7-plus",
+          "interleaved": {
+            "field": "reasoning_content"
+          },
           "knowledge": "2025-04",
           "last_updated": "2026-06-04",
           "limit": {
@@ -402,6 +620,7 @@
             }
           ],
           "release_date": "2026-06-02",
+          "structured_output": true,
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -754,6 +973,69 @@
             }
           ],
           "release_date": "2026-04-02",
+          "temperature": true,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "alibaba/qwen3.5-flash",
+          "cost": {
+            "cache_read": 0.01,
+            "cache_write": 0.125,
+            "input": 0.1,
+            "output": 0.4
+          },
+          "description": "Qwen vision-language model for visual reasoning, documents, and agent tasks",
+          "display_name": "Qwen3.5 Flash",
+          "extra_capabilities": {
+            "reasoning": {
+              "continuation": [
+                "thinking_blocks"
+              ],
+              "interleaved": true,
+              "summaries": true,
+              "supported": true,
+              "visibility": "summary"
+            }
+          },
+          "family": "qwen",
+          "id": "qwen3.5-flash",
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "last_updated": "2026-02-23",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.5 Flash",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "toggle"
+            },
+            {
+              "max": 81920,
+              "type": "budget_tokens"
+            }
+          ],
+          "release_date": "2026-02-23",
+          "structured_output": true,
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -3927,6 +4209,60 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-sonnet-5-5",
+          "cost": {
+            "cache_read": 0.2,
+            "cache_write": 2.5,
+            "input": 2,
+            "output": 10
+          },
+          "description": "Fast Claude model for everyday coding, agents, and knowledge work",
+          "display_name": "Claude Sonnet 5.5",
+          "family": "claude-sonnet",
+          "id": "claude-sonnet-5-5",
+          "knowledge": "2026-06",
+          "last_updated": "2026-09-28",
+          "limit": {
+            "context": 1000000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Claude Sonnet 5.5",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            }
+          ],
+          "release_date": "2026-09-28",
+          "structured_output": true,
+          "temperature": false,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "anthropic/claude-opus-5-5",
           "cost": {
             "cache_read": 0.2,
             "cache_write": 5,
@@ -3999,6 +4335,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-fable-5-1",
           "cost": {
             "cache_read": 0.25,
             "cache_write": 12.5,
@@ -4077,6 +4414,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-opus-5",
           "cost": {
             "cache_read": 0.5,
             "cache_write": 6.25,
@@ -4633,6 +4971,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-opus-4-5",
           "cost": {
             "cache_read": 0.5,
             "cache_write": 6.25,
@@ -4795,6 +5134,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-haiku-4-5",
           "cost": {
             "cache_read": 0.1,
             "cache_write": 1.25,
@@ -4929,6 +5269,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "anthropic/claude-sonnet-4-5",
           "cost": {
             "cache_read": 0.3,
             "cache_write": 3.75,
@@ -5077,7 +5418,7 @@
           "attachment": true,
           "display_name": "doubao-embedding-vision-250615",
           "id": "doubao-embedding-vision-250615",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 128000,
             "requests_per_minute": 15000
@@ -5118,7 +5459,7 @@
           "attachment": true,
           "display_name": "doubao-embedding-vision-251215",
           "id": "doubao-embedding-vision-251215",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 128000,
             "requests_per_minute": 15000
@@ -5159,7 +5500,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-code-preview-260215",
           "id": "doubao-seed-2-0-code-preview-260215",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5214,7 +5555,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-lite-260215",
           "id": "doubao-seed-2-0-lite-260215",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5272,7 +5613,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-lite-260428",
           "id": "doubao-seed-2-0-lite-260428",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5329,7 +5670,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-mini-260215",
           "id": "doubao-seed-2-0-mini-260215",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5387,7 +5728,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-mini-260428",
           "id": "doubao-seed-2-0-mini-260428",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5444,7 +5785,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-0-pro-260215",
           "id": "doubao-seed-2-0-pro-260215",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 128000,
@@ -5502,7 +5843,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-1-lite-260915",
           "id": "doubao-seed-2-1-lite-260915",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 1024000,
             "output": 256000,
@@ -5559,7 +5900,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-1-pro-260628",
           "id": "doubao-seed-2-1-pro-260628",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 256000,
@@ -5616,7 +5957,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-1-pro-260915",
           "id": "doubao-seed-2-1-pro-260915",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 1024000,
             "output": 256000,
@@ -5673,7 +6014,7 @@
           "attachment": true,
           "display_name": "doubao-seed-2-1-turbo-260628",
           "id": "doubao-seed-2-1-turbo-260628",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 256000,
             "output": 256000,
@@ -5730,7 +6071,7 @@
           "attachment": false,
           "display_name": "doubao-seed-character-251128",
           "id": "doubao-seed-character-251128",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 128000,
             "output": 32000,
@@ -5778,7 +6119,7 @@
           "attachment": true,
           "display_name": "doubao-seed-character-260628",
           "id": "doubao-seed-character-260628",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 128000,
             "output": 32000,
@@ -5834,7 +6175,7 @@
           "attachment": true,
           "display_name": "doubao-seed-evolving",
           "id": "doubao-seed-evolving",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 1024000,
             "output": 256000,
@@ -5891,7 +6232,7 @@
           "attachment": false,
           "display_name": "doubao-seed-translation-250915",
           "id": "doubao-seed-translation-250915",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "context": 4000,
             "output": 3000,
@@ -5933,7 +6274,7 @@
           "attachment": false,
           "display_name": "doubao-seedance-1-0-pro-250528",
           "id": "doubao-seedance-1-0-pro-250528",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_day": 500000000000,
             "requests_per_minute": 600
@@ -5973,7 +6314,7 @@
           "attachment": false,
           "display_name": "doubao-seedance-1-0-pro-fast-251015",
           "id": "doubao-seedance-1-0-pro-fast-251015",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_day": 500000000000,
             "requests_per_minute": 600
@@ -6013,7 +6354,7 @@
           "attachment": true,
           "display_name": "doubao-seedance-2-0-260128",
           "id": "doubao-seedance-2-0-260128",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "metadata": {
             "canonical_id": "doubao-seedance-2-0",
             "capabilities": [
@@ -6050,7 +6391,7 @@
           "attachment": true,
           "display_name": "doubao-seedance-2-0-fast-260128",
           "id": "doubao-seedance-2-0-fast-260128",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "metadata": {
             "canonical_id": "doubao-seedance-2-0-fast",
             "capabilities": [
@@ -6087,7 +6428,7 @@
           "attachment": true,
           "display_name": "doubao-seedance-2-0-mini-260615",
           "id": "doubao-seedance-2-0-mini-260615",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "metadata": {
             "canonical_id": "doubao-seedance-2-0-mini",
             "capabilities": [
@@ -6124,7 +6465,7 @@
           "attachment": true,
           "display_name": "doubao-seedance-2-5-260628",
           "id": "doubao-seedance-2-5-260628",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "metadata": {
             "canonical_id": "doubao-seedance-2-5",
             "capabilities": [
@@ -6161,7 +6502,7 @@
           "attachment": true,
           "display_name": "doubao-seedream-4-0-250828",
           "id": "doubao-seedream-4-0-250828",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_minute": 500
           },
@@ -6198,7 +6539,7 @@
           "attachment": true,
           "display_name": "doubao-seedream-4-5-251128",
           "id": "doubao-seedream-4-5-251128",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_minute": 500
           },
@@ -6235,7 +6576,7 @@
           "attachment": true,
           "display_name": "doubao-seedream-5-0-260128",
           "id": "doubao-seedream-5-0-260128",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_minute": 500
           },
@@ -6272,7 +6613,7 @@
           "attachment": true,
           "display_name": "doubao-seedream-5-0-flash-260915",
           "id": "doubao-seedream-5-0-flash-260915",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_minute": 500
           },
@@ -6309,7 +6650,7 @@
           "attachment": true,
           "display_name": "doubao-seedream-5-0-pro-260628",
           "id": "doubao-seedream-5-0-pro-260628",
-          "last_updated": "2026-09-26T11:31:26Z",
+          "last_updated": "2026-09-28T03:59:13Z",
           "limit": {
             "requests_per_minute": 500
           },
@@ -6428,7 +6769,7 @@
         }
       ],
       "name": "ByteDance",
-      "updated_at": "2026-09-26T11:31:26Z"
+      "updated_at": "2026-09-28T03:59:13Z"
     },
     "deepseek": {
       "api": "https://api.deepseek.com",
@@ -6438,6 +6779,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "deepseek/deepseek-v4.1-flash",
           "cost": {
             "cache_read": 0.006,
             "input": 0.3,
@@ -6513,6 +6855,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "deepseek/deepseek-v4.1-flash",
           "cost": {
             "cache_read": 0.003,
             "input": 0.15,
@@ -6591,6 +6934,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "deepseek/deepseek-v4.1-flash",
           "cost": {
             "cache_read": 0.0028,
             "input": 0.14,
@@ -6674,11 +7018,12 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "deepseek/deepseek-v4-pro-0813",
           "cost": {
-            "cache_read": 0.003625,
-            "input": 0.435,
-            "output": 0.87,
-            "reasoning": 0.87
+            "cache_read": 0.022,
+            "input": 0.66,
+            "output": 1.98,
+            "reasoning": 1.98
           },
           "description": "DeepSeek V4 Pro snapshot with million-token context and support for thinking and non-thinking modes",
           "display_name": "DeepSeek V4 Pro",
@@ -6757,6 +7102,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.8-flash",
           "cost": {
             "cache_read": 0.075,
             "input": 0.75,
@@ -6879,6 +7225,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.7-flash",
           "cost": {
             "cache_read": 0.075,
             "input": 0.75,
@@ -7002,6 +7349,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.6-flash",
           "cost": {
             "cache_read": 0.075,
             "input": 0.75,
@@ -7074,6 +7422,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.5-flash-lite",
           "cost": {
             "cache_read": 0.03,
             "input": 0.3,
@@ -7131,6 +7480,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-omni-flash-preview",
           "cost": {
             "input": 1.5,
             "output": 17.5
@@ -7168,6 +7518,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.1-flash-lite-image",
           "cost": {
             "input": 0.25,
             "output": 30
@@ -7220,6 +7571,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "google/gemini-3.5-live-translate-preview",
           "cost": {
             "input": 3.5,
             "input_audio": 3.5,
@@ -7257,6 +7609,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.1-flash-image",
           "cost": {
             "input": 0.5,
             "output": 60
@@ -7310,6 +7663,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3-pro-image",
           "cost": {
             "input": 2,
             "output": 120
@@ -7503,6 +7857,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-embedding-2",
           "cost": {
             "input": 0.2,
             "input_audio": 6.5,
@@ -7542,6 +7897,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/deep-research-preview-04-2026",
           "cost": {
             "cache_read": 0.2,
             "context_over_200k": {
@@ -7600,6 +7956,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/deep-research-max-preview-04-2026",
           "cost": {
             "cache_read": 0.2,
             "context_over_200k": {
@@ -7658,6 +8015,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "google/gemini-3.1-flash-tts-preview",
           "cost": {
             "input": 1,
             "output": 20
@@ -7768,6 +8126,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/veo-3.1-lite-generate-preview",
           "description": "Video model for prompt-guided generation, editing, and motion workflows",
           "display_name": "Veo 3.1 lite",
           "family": "veo",
@@ -7798,6 +8157,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3.1-flash-live-preview",
           "cost": {
             "input": 0.75,
             "input_audio": 3,
@@ -7870,6 +8230,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/lyria-3-pro-preview",
           "cost": {
             "input": 0,
             "output": 0
@@ -7906,6 +8267,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/lyria-3-clip-preview",
           "cost": {
             "input": 0,
             "output": 0
@@ -8288,6 +8650,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-3-pro-image-preview",
           "cost": {
             "input": 2,
             "output": 120
@@ -8343,6 +8706,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/veo-3.1-fast-generate-preview",
           "description": "Video model for prompt-guided generation, editing, and motion workflows",
           "display_name": "Veo 3.1 fast",
           "family": "veo",
@@ -8374,6 +8738,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/veo-3.1-generate-preview",
           "description": "Video model for prompt-guided generation, editing, and motion workflows",
           "display_name": "Veo 3.1",
           "family": "veo",
@@ -8405,6 +8770,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-2.5-computer-use-preview-10-2025",
           "cost": {
             "context_over_200k": {
               "input": 2.5,
@@ -8456,6 +8822,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "google/gemini-2.5-flash-image",
           "cost": {
             "cache_read": 0.075,
             "input": 0.3,
@@ -8494,6 +8861,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-2.5-pro",
           "cost": {
             "cache_read": 0.125,
             "context_over_200k": {
@@ -8586,6 +8954,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "google/gemini-2.5-flash",
           "cost": {
             "cache_read": 0.03,
             "input": 0.3,
@@ -9466,6 +9835,100 @@
         {
           "attachment": false,
           "cost": {
+            "cache_read": 0.015,
+            "input": 0.06,
+            "output": 0.25
+          },
+          "description": "Reasoning model for deliberate analysis, multi-step problem solving, and tool use",
+          "display_name": "Granite 4.2 8B (DeepInfra)",
+          "family": "granite",
+          "id": "deepinfra/granite-4.2-8b",
+          "last_updated": "2026-09-01",
+          "limit": {
+            "context": 131072,
+            "output": 117964
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Granite 4.2 8B (DeepInfra)",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "none",
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ],
+          "release_date": "2026-09-01",
+          "structured_output": false,
+          "temperature": true,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": false,
+          "cost": {
+            "cache_read": 0.015,
+            "input": 0.06,
+            "output": 0.25
+          },
+          "description": "Reasoning model for deliberate analysis, multi-step problem solving, and tool use",
+          "display_name": "Granite 4.2 8B",
+          "family": "granite",
+          "id": "granite-4.2-8b",
+          "last_updated": "2026-09-01",
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Granite 4.2 8B",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "none",
+                "low",
+                "medium",
+                "high"
+              ]
+            }
+          ],
+          "release_date": "2026-09-01",
+          "structured_output": false,
+          "temperature": true,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": false,
+          "cost": {
             "cache_read": 0.05,
             "input": 0.1,
             "output": 0.15
@@ -9580,6 +10043,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "ibm/granite-4-h-small",
           "cost": {
             "input": 0.0636,
             "output": 0.265
@@ -10367,10 +10831,82 @@
           },
           "name": "granite4.2",
           "reasoning": {
-            "default": false,
+            "default": true,
             "supported": true
           },
-          "tool_call": false,
+          "tool_call": true,
+          "type": "chat",
+          "vision": false
+        },
+        {
+          "display_name": "granite4.2 30b",
+          "id": "granite4.2:30b",
+          "limit": {
+            "context": 131072,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "granite4.2 30b",
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "tool_call": true,
+          "type": "chat",
+          "vision": false
+        },
+        {
+          "display_name": "granite4.2 3b",
+          "id": "granite4.2:3b",
+          "limit": {
+            "context": 131072,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "granite4.2 3b",
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "tool_call": true,
+          "type": "chat",
+          "vision": false
+        },
+        {
+          "display_name": "granite4.2 8b",
+          "id": "granite4.2:8b",
+          "limit": {
+            "context": 131072,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "granite4.2 8b",
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "tool_call": true,
           "type": "chat",
           "vision": false
         }
@@ -10527,6 +11063,7 @@
       "models": [
         {
           "attachment": false,
+          "canonical_model_id": "meituan/longcat-2.0",
           "cost": {
             "cache_read": 0.015,
             "input": 0.75,
@@ -10590,6 +11127,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "meta/muse-spark-1.3",
           "cost": {
             "cache_read": 0.15,
             "input": 1.25,
@@ -10648,6 +11186,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "meta/muse-spark-1.3",
           "cost": {
             "cache_read": 0.002,
             "input": 0.1,
@@ -10748,6 +11287,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "meta/muse-spark-1.2",
           "cost": {
             "cache_read": 0.15,
             "input": 1.25,
@@ -10805,6 +11345,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "meta/muse-spark-1.2",
           "cost": {
             "cache_read": 0.002,
             "input": 0.1,
@@ -10857,6 +11398,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "meta/muse-spark-1.1",
           "cost": {
             "cache_read": 0.15,
             "input": 1.25,
@@ -11388,6 +11930,7 @@
       "models": [
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.3",
           "cost": {
             "cache_read": 0.14,
             "input": 1.4,
@@ -11434,6 +11977,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.2",
           "cost": {
             "cache_read": 0.14,
             "input": 1.4,
@@ -11482,6 +12026,7 @@
         {
           "attachment": true,
           "cost": {
+            "cache_read": 0.15,
             "input": 1.5,
             "output": 7.5
           },
@@ -11526,7 +12071,9 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "mistral/mistral-medium-latest",
           "cost": {
+            "cache_read": 0.15,
             "input": 1.5,
             "output": 7.5
           },
@@ -11572,6 +12119,7 @@
         {
           "attachment": true,
           "cost": {
+            "cache_read": 0.015,
             "input": 0.15,
             "output": 0.6
           },
@@ -11617,6 +12165,7 @@
         {
           "attachment": true,
           "cost": {
+            "cache_read": 0.015,
             "input": 0.15,
             "output": 0.6
           },
@@ -12140,42 +12689,7 @@
         },
         {
           "attachment": false,
-          "cost": {
-            "input": 0.5,
-            "output": 1.5
-          },
-          "description": "Mistral reasoning model for transparent analysis, math, and complex decisions",
-          "display_name": "Magistral Small",
-          "family": "magistral-small",
-          "id": "magistral-small",
-          "knowledge": "2025-06",
-          "last_updated": "2025-03-17",
-          "limit": {
-            "context": 128000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "name": "Magistral Small",
-          "open_weights": true,
-          "reasoning": {
-            "default": true,
-            "supported": true
-          },
-          "reasoning_options": [],
-          "release_date": "2025-03-17",
-          "temperature": true,
-          "tool_call": true,
-          "type": "chat"
-        },
-        {
-          "attachment": false,
+          "canonical_model_id": "mistral/mistral-large-2411",
           "cost": {
             "input": 2,
             "output": 6
@@ -12211,6 +12725,7 @@
         {
           "attachment": true,
           "cost": {
+            "cache_read": 0.05,
             "input": 0.5,
             "output": 1.5
           },
@@ -12246,6 +12761,7 @@
         {
           "attachment": true,
           "cost": {
+            "cache_read": 0.05,
             "input": 0.5,
             "output": 1.5
           },
@@ -12488,6 +13004,7 @@
         {
           "attachment": false,
           "cost": {
+            "cache_read": 0.03,
             "input": 0.3,
             "output": 0.9
           },
@@ -12665,6 +13182,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "moonshotai/kimi-k3",
           "cost": {
             "cache_read": 0.3,
             "input": 3,
@@ -12711,9 +13229,6 @@
           },
           "reasoning_options": [
             {
-              "type": "toggle"
-            },
-            {
               "type": "effort",
               "values": [
                 "low",
@@ -12730,6 +13245,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "moonshotai/kimi-k2.7-code",
           "cost": {
             "cache_read": 0.16,
             "input": 0.95,
@@ -12844,6 +13360,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "moonshotai/kimi-k2.7-code",
           "cost": {
             "cache_read": 0.38,
             "input": 1.9,
@@ -12909,6 +13426,7 @@
       "models": [
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-3.5-lightning",
           "cost": {
             "input": 0,
             "output": 0
@@ -12949,6 +13467,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-3-ultra-550b-a55b",
           "cost": {
             "cache_read": 0.15,
             "input": 0.5,
@@ -12995,6 +13514,62 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "nvidia/nemotron-3.5-content-safety",
+          "cost": {
+            "input": 0,
+            "output": 0
+          },
+          "description": "Safety model for policy screening, moderation, and risk-aware routing workflows",
+          "display_name": "Nemotron 3.5 Content Safety",
+          "extra_capabilities": {
+            "reasoning": {
+              "continuation": [
+                "thinking_blocks"
+              ],
+              "interleaved": true,
+              "summaries": true,
+              "supported": true,
+              "visibility": "summary"
+            }
+          },
+          "family": "nemotron",
+          "id": "nvidia/nemotron-3.5-content-safety",
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "last_updated": "2026-06-04",
+          "limit": {
+            "context": 128000,
+            "output": 8192
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3.5 Content Safety",
+          "open_weights": true,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "release_date": "2026-06-04",
+          "temperature": true,
+          "tool_call": false,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
           "cost": {
             "input": 0,
             "output": 0
@@ -13112,6 +13687,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-3-content-safety",
           "cost": {
             "input": 0,
             "output": 0
@@ -13139,12 +13715,14 @@
             "supported": false
           },
           "release_date": "2026-04-16",
+          "status": "deprecated",
           "temperature": false,
           "tool_call": false,
           "type": "chat"
         },
         {
           "attachment": true,
+          "canonical_model_id": "nvidia/llama-nemotron-rerank-vl-1b-v2",
           "cost": {
             "input": 0,
             "output": 0
@@ -13179,6 +13757,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "nvidia/nemotron-voicechat",
           "cost": {
             "input": 0,
             "output": 0
@@ -13213,6 +13792,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-3-super-120b-a12b",
           "cost": {
             "input": 0.2,
             "output": 0.8
@@ -13284,6 +13864,7 @@
             "supported": false
           },
           "release_date": "2026-03-03",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": false,
           "type": "chat"
@@ -13324,6 +13905,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "nvidia/llama-nemotron-embed-vl-1b-v2",
           "cost": {
             "input": 0,
             "output": 0
@@ -13358,6 +13940,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-content-safety-reasoning-4b",
           "cost": {
             "input": 0,
             "output": 0
@@ -13387,6 +13970,7 @@
           },
           "reasoning_options": [],
           "release_date": "2026-01-22",
+          "status": "deprecated",
           "temperature": false,
           "tool_call": false,
           "type": "chat"
@@ -13525,6 +14109,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
           "cost": {
             "input": 0,
             "output": 0
@@ -13558,6 +14143,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "nvidia/nemotron-nano-12b-v2-vl",
           "cost": {
             "input": 0,
             "output": 0
@@ -13594,12 +14180,14 @@
           },
           "reasoning_options": [],
           "release_date": "2025-10-28",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-nano-9b-v2",
           "cost": {
             "input": 0,
             "output": 0
@@ -13634,12 +14222,14 @@
             }
           ],
           "release_date": "2025-08-18",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
           "cost": {
             "input": 0,
             "output": 0
@@ -13673,6 +14263,7 @@
             }
           ],
           "release_date": "2025-07-25",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -13778,6 +14369,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/llama-3.1-nemotron-70b-instruct",
           "cost": {
             "input": 0,
             "output": 0
@@ -13841,12 +14433,14 @@
           },
           "reasoning_options": [],
           "release_date": "2025-04-10",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/llama-3.1-nemotron-ultra-253b",
           "cost": {
             "input": 0,
             "output": 0
@@ -13886,6 +14480,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/llama-3.3-nemotron-super-49b-v1",
           "cost": {
             "input": 0,
             "output": 0
@@ -13919,6 +14514,7 @@
             }
           ],
           "release_date": "2025-04-07",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -14056,6 +14652,7 @@
             }
           ],
           "release_date": "2025-03-18",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -14094,6 +14691,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-3-nano-30b-a3b",
           "cost": {
             "input": 0,
             "output": 0
@@ -14133,6 +14731,7 @@
             }
           ],
           "release_date": "2024-12",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -14171,6 +14770,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "nvidia/nemotron-mini-4b-instruct",
           "cost": {
             "input": 0,
             "output": 0
@@ -14198,6 +14798,7 @@
             "supported": false
           },
           "release_date": "2024-08-21",
+          "status": "deprecated",
           "temperature": true,
           "tool_call": true,
           "type": "chat"
@@ -14308,6 +14909,105 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-6.1-sol",
+          "cost": {
+            "cache_read": 0.1,
+            "cache_write": 2.5,
+            "context_over_200k": {
+              "cache_read": 0.2,
+              "cache_write": 5,
+              "input": 4,
+              "output": 15
+            },
+            "input": 2,
+            "output": 10,
+            "tiers": [
+              {
+                "cache_read": 0.2,
+                "cache_write": 5,
+                "input": 4,
+                "output": 15,
+                "tier": {
+                  "size": 272000,
+                  "type": "context"
+                }
+              }
+            ]
+          },
+          "description": "Near-Astra performance for complex coding, computer use, and professional work at a lower cost.",
+          "display_name": "GPT-6.1 Sol",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.2,
+                  "cache_write": 5,
+                  "input": 4,
+                  "output": 20
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "pro": {
+                "provider": {
+                  "body": {
+                    "reasoning": {
+                      "mode": "pro"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "family": "gpt-sol",
+          "id": "gpt-6.1-sol",
+          "knowledge": "2026-04-30",
+          "last_updated": "2026-09-29",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "GPT-6.1 Sol",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            }
+          ],
+          "release_date": "2026-09-29",
+          "structured_output": true,
+          "temperature": false,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "openai/gpt-6-luna",
           "cost": {
             "cache_read": 0.01,
             "cache_write": 0.125,
@@ -14406,6 +15106,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-6-sol",
           "cost": {
             "cache_read": 0.2,
             "cache_write": 2.5,
@@ -14504,6 +15205,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-6-astra",
           "cost": {
             "cache_read": 1,
             "cache_write": 12.5,
@@ -14551,6 +15253,19 @@
                     "reasoning": {
                       "mode": "pro"
                     }
+                  }
+                }
+              },
+              "ultrafast": {
+                "cost": {
+                  "cache_read": 6,
+                  "cache_write": 75,
+                  "input": 60,
+                  "output": 300
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "ultrafast"
                   }
                 }
               }
@@ -14606,6 +15321,134 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-sol",
+          "cost": {
+            "cache_read": 0.4,
+            "cache_write": 5,
+            "context_over_200k": {
+              "cache_read": 0.8,
+              "cache_write": 10,
+              "input": 8,
+              "output": 30
+            },
+            "input": 4,
+            "output": 20,
+            "tiers": [
+              {
+                "cache_read": 0.8,
+                "cache_write": 10,
+                "input": 8,
+                "output": 30,
+                "tier": {
+                  "size": 272000,
+                  "type": "context"
+                }
+              }
+            ]
+          },
+          "description": "Alias for flagship general-purpose models with safeguards for defensive cybersecurity work",
+          "display_name": "Daybreak Blue",
+          "family": "gpt-sol",
+          "id": "gpt-daybreak-blue-latest",
+          "knowledge": "2026-02-16",
+          "last_updated": "2026-08-07",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Daybreak Blue",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "none",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            }
+          ],
+          "release_date": "2026-08-07",
+          "structured_output": true,
+          "temperature": false,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-cyber",
+          "cost": {
+            "cache_read": 1.25,
+            "cache_write": 15.625,
+            "input": 12.5,
+            "output": 75
+          },
+          "description": "Alias for advanced cybersecurity models for authorized vulnerability research and security testing",
+          "display_name": "Daybreak Red",
+          "family": "gpt",
+          "id": "gpt-daybreak-red-latest",
+          "knowledge": "2026-02-16",
+          "last_updated": "2026-08-07",
+          "limit": {
+            "context": 400000,
+            "input": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Daybreak Red",
+          "open_weights": false,
+          "reasoning": {
+            "default": true,
+            "supported": true
+          },
+          "reasoning_options": [
+            {
+              "type": "effort",
+              "values": [
+                "none",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            }
+          ],
+          "release_date": "2026-08-07",
+          "structured_output": true,
+          "temperature": false,
+          "tool_call": true,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-sol",
           "cost": {
             "cache_read": 0.4,
             "cache_write": 5,
@@ -14727,6 +15570,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-luna",
           "cost": {
             "cache_read": 0.02,
             "cache_write": 0.25,
@@ -14848,6 +15692,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-terra",
           "cost": {
             "cache_read": 0.2,
             "cache_write": 2.5,
@@ -14969,6 +15814,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-5.6-sol",
           "cost": {
             "cache_read": 0.4,
             "cache_write": 5,
@@ -15090,6 +15936,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-realtime-2.1",
           "cost": {
             "cache_read": 0.4,
             "input": 4,
@@ -15318,6 +16165,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-image-2",
           "cost": {
             "cache_read": 1.25,
             "input": 5,
@@ -15372,6 +16220,22 @@
           },
           "description": "Cheapest GPT-5.4 lane for simple routing, extraction, and bulk automation",
           "display_name": "GPT-5.4 nano",
+          "experimental": {
+            "modes": {
+              "flex": {
+                "cost": {
+                  "cache_read": 0.01,
+                  "input": 0.1,
+                  "output": 0.625
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": false,
@@ -15456,6 +16320,18 @@
                 "provider": {
                   "body": {
                     "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0375,
+                  "input": 0.375,
+                  "output": 2.25
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
                   }
                 }
               }
@@ -15760,6 +16636,22 @@
           },
           "description": "Coding-optimized GPT model for repository edits, reviews, and agentic software work",
           "display_name": "GPT-5.3 Codex",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.35,
+                  "input": 3.5,
+                  "output": 28
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16053,6 +16945,34 @@
           },
           "description": "Reliable GPT generation for broad coding, writing, and tool-assisted product work",
           "display_name": "GPT-5.2",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.35,
+                  "input": 3.5,
+                  "output": 28
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0875,
+                  "input": 0.875,
+                  "output": 7
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": false,
@@ -16119,6 +17039,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-image-1.5",
           "description": "Image model for prompt-driven generation, editing, and visual design workflows",
           "display_name": "gpt-image-1.5",
           "family": "gpt-image",
@@ -16158,6 +17079,34 @@
           },
           "description": "Sharper GPT-5 generation for coding, product work, and tool-assisted tasks",
           "display_name": "GPT-5.1",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.25,
+                  "input": 2.5,
+                  "output": 20
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0625,
+                  "input": 0.625,
+                  "output": 5
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": false,
@@ -16322,6 +17271,34 @@
           },
           "description": "Small GPT-5 for responsive agents, coding help, and everyday automation",
           "display_name": "GPT-5 Mini",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.045,
+                  "input": 0.45,
+                  "output": 3.6
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0125,
+                  "input": 0.125,
+                  "output": 1
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16393,6 +17370,22 @@
           },
           "description": "Tiny GPT-5 lane for routing, extraction, classification, and bulk jobs",
           "display_name": "GPT-5 Nano",
+          "experimental": {
+            "modes": {
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0025,
+                  "input": 0.025,
+                  "output": 0.2
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16457,6 +17450,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-5",
           "cost": {
             "cache_read": 0.125,
             "input": 1.25,
@@ -16464,6 +17458,34 @@
           },
           "description": "Original GPT-5 workhorse for reasoning, coding, writing, and tool workflows",
           "display_name": "GPT-5",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.25,
+                  "input": 2.5,
+                  "output": 20
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.0625,
+                  "input": 0.625,
+                  "output": 5
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16643,6 +17665,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "openai/gpt-image-1",
           "description": "OpenAI image model for production generation, edits, and brand-safe visual workflows",
           "display_name": "gpt-image-1",
           "family": "gpt-image",
@@ -16682,6 +17705,34 @@
           },
           "description": "Fast o-series model for compact reasoning, coding, and tool use",
           "display_name": "o4-mini",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.5,
+                  "input": 2,
+                  "output": 8
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.138,
+                  "input": 0.55,
+                  "output": 2.2
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16745,6 +17796,34 @@
           },
           "description": "Deliberate o-series reasoner for hard math, coding, and multi-step analysis",
           "display_name": "o3",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.875,
+                  "input": 3.5,
+                  "output": 14
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              },
+              "flex": {
+                "cost": {
+                  "cache_read": 0.25,
+                  "input": 1,
+                  "output": 4
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "flex"
+                  }
+                }
+              }
+            }
+          },
           "extra_capabilities": {
             "reasoning": {
               "default_enabled": true,
@@ -16808,6 +17887,22 @@
           },
           "description": "Tiny GPT-4.1 option for classification, routing, and very high-volume tasks",
           "display_name": "GPT-4.1 nano",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.05,
+                  "input": 0.2,
+                  "output": 0.8
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt-nano",
           "id": "gpt-4.1-nano",
           "knowledge": "2024-04",
@@ -16846,6 +17941,22 @@
           },
           "description": "Long-lived GPT workhorse for coding, instruction following, and production apps",
           "display_name": "GPT-4.1",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.875,
+                  "input": 3.5,
+                  "output": 14
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt",
           "id": "gpt-4.1",
           "knowledge": "2024-04",
@@ -16884,6 +17995,22 @@
           },
           "description": "Affordable GPT-4.1 lane for fast coding help and structured extraction",
           "display_name": "GPT-4.1 mini",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.175,
+                  "input": 0.7,
+                  "output": 2.8
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt-mini",
           "id": "gpt-4.1-mini",
           "knowledge": "2024-04",
@@ -17184,6 +18311,22 @@
           },
           "description": "Small omni GPT for cheap multimodal assistance and production-scale traffic",
           "display_name": "GPT-4o mini",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 0.125,
+                  "input": 0.25,
+                  "output": 1
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt-mini",
           "id": "gpt-4o-mini",
           "knowledge": "2023-09",
@@ -17221,6 +18364,21 @@
           },
           "description": "GPT model for general reasoning, writing, coding, and tool-assisted tasks",
           "display_name": "GPT-4o (2024-05-13)",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "input": 8.75,
+                  "output": 26.25
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt",
           "id": "gpt-4o-2024-05-13",
           "knowledge": "2023-09",
@@ -17259,6 +18417,22 @@
           },
           "description": "Omni-era GPT for multimodal chat, practical coding, and general assistants",
           "display_name": "GPT-4o",
+          "experimental": {
+            "modes": {
+              "fast": {
+                "cost": {
+                  "cache_read": 2.125,
+                  "input": 4.25,
+                  "output": 17
+                },
+                "provider": {
+                  "body": {
+                    "service_tier": "priority"
+                  }
+                }
+              }
+            }
+          },
           "family": "gpt",
           "id": "gpt-4o",
           "knowledge": "2023-09",
@@ -17632,6 +18806,7 @@
       "models": [
         {
           "attachment": false,
+          "canonical_model_id": "poolside/laguna-s-2.1",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
@@ -17688,6 +18863,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "poolside/laguna-xs-2.1",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
@@ -17744,6 +18920,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "poolside/laguna-m.1",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
@@ -17809,6 +18986,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "stepfun/step-5-preview",
           "cost": {
             "cache_read": 0.048,
             "input": 0.96,
@@ -17888,6 +19066,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "stepfun/step-3.7-flash",
           "cost": {
             "cache_read": 0.037,
             "input": 0.185,
@@ -18232,6 +19411,7 @@
       "models": [
         {
           "attachment": false,
+          "canonical_model_id": "tencent/hy4-preview",
           "cost": {
             "cache_read": 0.042,
             "input": 0.834,
@@ -18284,6 +19464,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "tencent/hy3",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
@@ -18338,6 +19519,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "tencent/hy3-preview",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
@@ -18643,6 +19825,39 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "xai/grok-imagine-video-1.5-lite",
+          "description": "Cost-efficient video model for text-to-video and image-to-video generation",
+          "display_name": "Grok Imagine Video 1.5 Lite",
+          "family": "grok",
+          "id": "grok-imagine-video-1.5-lite",
+          "last_updated": "2026-10-01",
+          "limit": {
+            "context": 1024,
+            "output": 8192
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "video"
+            ]
+          },
+          "name": "Grok Imagine Video 1.5 Lite",
+          "open_weights": false,
+          "reasoning": {
+            "supported": false
+          },
+          "release_date": "2026-10-01",
+          "temperature": false,
+          "tool_call": false,
+          "type": "chat"
+        },
+        {
+          "attachment": true,
+          "canonical_model_id": "xai/grok-4.7",
           "cost": {
             "cache_read": 0.5,
             "context_over_200k": {
@@ -18709,6 +19924,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "xai/grok-4.6",
           "cost": {
             "cache_read": 0.5,
             "context_over_200k": {
@@ -18780,6 +19996,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "xai/grok-4.5",
           "cost": {
             "cache_read": 0.3,
             "context_over_200k": {
@@ -18849,6 +20066,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "xai/grok-imagine-video-1.5",
           "description": "Video model for image-to-video generation, editing, and extension workflows",
           "display_name": "Grok Imagine Video 1.5",
           "family": "grok",
@@ -19011,6 +20229,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "xai/grok-imagine-image-quality",
           "description": "Higher-fidelity Grok Imagine image model for prompt-driven generation, editing, and visual design workflows",
           "display_name": "Grok Imagine Image Quality",
           "family": "grok",
@@ -20138,6 +21357,7 @@
       "models": [
         {
           "attachment": true,
+          "canonical_model_id": "zhipuai/glm-5.3-flash",
           "cost": {
             "cache_read": 0.075,
             "cache_write": 0,
@@ -20202,6 +21422,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "zhipuai/glm-5.3-flash",
           "cost": {
             "cache_read": 0.03,
             "cache_write": 0,
@@ -20266,6 +21487,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.3",
           "cost": {
             "cache_read": 0.26,
             "cache_write": 0,
@@ -20327,6 +21549,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.2",
           "cost": {
             "cache_read": 0.26,
             "cache_write": 0,
@@ -20387,6 +21610,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5.1",
           "cost": {
             "cache_read": 0.26,
             "cache_write": 0,
@@ -20557,6 +21781,7 @@
         },
         {
           "attachment": false,
+          "canonical_model_id": "zhipuai/glm-5",
           "cost": {
             "cache_read": 0.2,
             "cache_write": 0,
@@ -20799,6 +22024,7 @@
         },
         {
           "attachment": true,
+          "canonical_model_id": "zhipuai/glm-4.6v-flash",
           "cost": {
             "cache_read": 0,
             "cache_write": 0,
